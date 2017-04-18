@@ -25,8 +25,8 @@ class StockHistoryPrices:
         files = glob.glob(os.path.join(self.configs.data_path, self.configs.symbols_file + "*"))
         if not files:
             raise FileExistsError('Cannot find stock listing file %s in %s',
-                                  self.configs.local_file,
-                                  self.configs.local_path)
+                                  self.configs.symbols_file,
+                                  self.configs.data_path)
 
         total_symbols = 0
         symbols_no_data = 0
