@@ -1,11 +1,13 @@
 from configs.configuration import Configuration
 import logging.config
+import os
 
 from stock.us.stock_listings import StockListings
 from stock.us.stock_history_prices import StockHistoryPrices
 
 if __name__ == '__main__':
     # init logging
+    os.makedirs('logs', exist_ok=True)
     logging.config.dictConfig(Configuration.get_logging_config())
 
     # refresh stock lists
