@@ -22,7 +22,7 @@
       "formatter": "simple",
       "filename": "logs/program.log",
       "when": "midnight",
-      "backupCount": "10"
+      "backupCount": 10
     },
     "error_file": {
       "class": "logging.handlers.TimedRotatingFileHandler",
@@ -30,7 +30,7 @@
       "formatter": "simple",
       "filename": "logs/error.log",
       "when": "midnight",
-      "backupCount": "10"
+      "backupCount": 10
     }
   },
   "loggers": {},

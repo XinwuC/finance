@@ -22,11 +22,21 @@ class StockHistoryPrices:
         os.makedirs(self.history_folder, exist_ok=True)
 
     def refresh(self):
+        """
+        Refresh stock price history. It will first get latest symbols list from the web services provided in configs,
+        then fetch stock price history from Yahoo! and Google, Yahoo! data take precedence over Google data.
+        
+        The data will store in the target location specified in configs. Each symbol stored in one file, naming as 
+        %market%_%symbol%.csv
+        
+        Errors are logged in error.log file.
+        
+        :return: None 
+        """
         files = glob.glob(os.path.join(self.configs.data_path, self.configs.symbols_file + "*"))
         if not files:
-            raise FileExistsError('Cannot find stock listing file %s in %s',
-                                  self.configs.symbols_file,
-                                  self.configs.data_path)
+            raise FileExistsError('Cannot find stock listing file %s in %s' %
+                                  (self.configs.symbols_file, self.configs.data_path))
 
         total_symbols = 0
         symbols_no_data = 0
@@ -51,13 +61,14 @@ class StockHistoryPrices:
         start = datetime.datetime(year, 1, 1)
         end = datetime.date.today()
         yahoo_data = self._get_yahoo_data(market, stock, start, end)
-        google_data = self._get_google_data(market, stock, start, end)
+        google_data = None  # self._get_google_data(market, stock, start, end)
         stock_prices = self._reconcile_data(yahoo_data, google_data)
 
         if stock_prices is not None:
-            stock_prices_file = os.path.join(self.history_folder, '%s_%s.csv' % (market, stock.Symbol))
+            self._post_process_data(stock_prices)
+            stock_prices_file = os.path.join(self.history_folder, '%s-%s.csv' % (market, stock.Symbol.strip()))
             stock_prices.to_csv(stock_prices_file)
-            self.logger.info('Updated price history for [%s] %s (%s)\t[%s][%s] %s.', market.upper(),
+            self.logger.info('Updated price history for [%s] %s (%s)\t[%s][%s] %s', market.upper(),
                              stock.Symbol, stock.IPOyear, stock.Sector, stock.industry, stock.Name)
 
         return yahoo_data is None, google_data is None
@@ -65,20 +76,20 @@ class StockHistoryPrices:
     def _get_yahoo_data(self, market, stock, start, end):
         yahoo_data = None
         try:
-            yahoo_data = web.get_data_yahoo(stock.Symbol, start, end)
+            yahoo_data = web.get_data_yahoo(stock.Symbol.strip(), start, end)
         except Exception as e:
             self.logger.error("Failed to get Yahoo! data for [%s] %s - %s price history, %s", market.upper(),
-                              stock.Symbol,
+                              stock.Symbol.strip(),
                               stock.Name, e)
         return yahoo_data
 
     def _get_google_data(self, market, stock, start, end):
         google_data = None
         try:
-            google_data = web.get_data_google(stock.Symbol, start, end)
+            google_data = web.get_data_google(stock.Symbol.strip(), start, end)
         except Exception as e:
             self.logger.error("Failed to get Google data for [%s] %s - %s price history, %s", market.upper(),
-                              stock.Symbol,
+                              stock.Symbol.strip(),
                               stock.Name, e)
         return google_data
 
@@ -89,3 +100,14 @@ class StockHistoryPrices:
             return yahoo_data
         # TODO: add reconcile logic here, for now simply use yahoo_data first
         return yahoo_data
+
+    def _post_process_data(self, data):
+        """
+        Add extra data that derived from the basic data, and save back into the same data frame
+        - adjust price change %
+        
+        :param data: 2D data frame which has the price history 
+        :return: None
+        """
+        data.sort_index(inplace=True, ascending=False)
+        data["adjusted_change_percentage"] = data["Adj Close"] / data["Adj Close"].shift(-1) - 1

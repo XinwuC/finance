@@ -31,6 +31,7 @@ setup(
         "matplotlib",
         "numexpr",
         "numpy",
+        "dateutil",
         "pandas",
         "pandas-datareader",
         "scipy",

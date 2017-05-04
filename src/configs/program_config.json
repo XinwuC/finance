@@ -9,6 +9,17 @@
     "data_path": "data/us/stocks/",
     "data_history_folder": "history",
     "symbols_file": "symbols",
-    "stock_list_provider": "http://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=%s&render=download"
+    "stock_list_provider": "http://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=%s&render=download",
+    "strategy": {
+      "list": ["overreact"],
+      "overreact": {
+        "top_drop_pct": 0.5,
+        "target_recover_rate": 0.05,
+        "recover_days": 5,
+        "recover_success_rate": 0.03,
+        "max_allowed_fallback": -0.05,
+        "max_fallback_rate": 0.9
+      }
+    }
   }
 }
