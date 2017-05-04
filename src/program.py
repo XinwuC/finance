@@ -13,11 +13,11 @@ if __name__ == '__main__':
 
     # refresh stock lists
     stock_listings = StockListings()
-    stock_listings.refresh()
+    # stock_listings.refresh()
 
     # refresh stock prices
     stock_history_prices = StockHistoryPrices()
-    stock_history_prices.refresh()
+    # stock_history_prices.refresh()
 
     # run us stock strategies
     strategy_executor = StrategyExecutor()

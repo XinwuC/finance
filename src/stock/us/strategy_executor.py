@@ -25,9 +25,9 @@ class StrategyExecutor:
             result = self._run_strategy(strategy)
             if result is not None and not result.empty:
                 # TODO send mail
-                self.logger.info("Found buying options.")
                 result.to_csv('over-react-%s.csv' % datetime.date.today())
-                pass
+                with pandas.option_context('display.max_rows', 10, 'expand_frame_repr', False):
+                    self.logger.debug('%s analysis results:\n%s' % (type(strategy).__name__, result))
 
     def _run_strategy(self, strategy) -> pandas.DataFrame:
         with os.scandir(self.history_folder) as it:
@@ -38,6 +38,7 @@ class StrategyExecutor:
                 if entry.is_file() and name_pattern.match(entry.name):
                     (market, symbol, dummy) = name_extractor.findall(entry.name)
                     prices = pandas.read_csv(entry.path, index_col=0, parse_dates=True)
+                    self.logger.info('Running strategy %s for [%s] %s' % (type(strategy).__name__, market, symbol))
                     buying_symbol = strategy.analysis(market, symbol, prices)
                     if buying_symbol is not None:
                         if result is None:
