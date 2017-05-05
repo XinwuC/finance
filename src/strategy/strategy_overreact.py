@@ -8,8 +8,10 @@ import logging
 import dateutil
 import pandas
 
+from strategy.strategy import Strategy
 
-class OverReactStrategy:
+
+class OverReactStrategy(Strategy):
     def __init__(self, top_drop_pct=0.05, target_recover_rate=0.05, recover_days=5, recover_success_rate=0.9,
                  max_allowed_fallback=None, allowed_max_fallback_rate=None):
         """
