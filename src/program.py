@@ -3,6 +3,7 @@ import logging.config
 import os
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from smtplib import SMTP
 
 from configs.configuration import Configuration
 from stock.us.stock_history_prices import StockHistoryPrices
@@ -45,10 +46,14 @@ if __name__ == '__main__':
 
         # send mail
         msg = MIMEMultipart('alternative')
-        msg["From"] = "xwcheng@msn.com"
-        msg["To"] = "chengxinwu@yahoo.com"
-        msg["Subject"] = "Stocks"
+        msg['From'] = 'Xinwu <xwcheng@live.com>'
+        msg['To'] = 'chengxinwu@yahoo.com'
+        msg['Subject'] = 'Stocks'
         msg.attach(MIMEText(text_content, 'plain'))
         msg.attach(MIMEText(html_content, 'html'))
-        p = os.popen("/usr/sbin/sendmail -t -oi", 'w')
-        p.write(msg.as_string())
+        with SMTP('smtp.live.com', '587') as smtp:
+            smtp.starttls()
+            smtp.login('xwcheng@live.com', '2011fortesting')
+            smtp.sendmail(msg['From'], msg['To'], msg.as_string())
+            logging.info('Send opportunities throuhg mail to %s', msg['To'])
+
