@@ -56,11 +56,10 @@ class StockHistoryPrices:
             'Stock prices update completed, %s (%s) symbols has no data, yahoo has %s errors and google has %s errors.',
             symbols_no_data, total_symbols, yahoo_errors, google_errors)
 
-    def update_history_prices(self, market, stock):
+    def update_history_prices(self, market, stock, end_date: datetime = datetime.date.today()):
         year = int(stock.IPOyear) if stock.IPOyear != 'n/a' else self.configs.default_first_history_year
         start = datetime.datetime(year, 1, 1)
-        end = datetime.date.today()
-        yahoo_data = self._get_yahoo_data(market, stock, start, end)
+        yahoo_data = self._get_yahoo_data(market, stock, start, end_date)
         google_data = None  # self._get_google_data(market, stock, start, end)
         stock_prices = self._reconcile_data(yahoo_data, google_data)
 
