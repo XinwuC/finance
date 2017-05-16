@@ -4,7 +4,7 @@ Strategy: capture over-react price drop for sudden events
 
 import datetime
 import logging
-
+import numpy
 import dateutil
 import pandas
 
@@ -50,11 +50,11 @@ class OverReactStrategy(Strategy):
             target_date = price_history.first_valid_index()
         # condition 0: price dropped on target day
         current_drop_pct = price_history['adjusted_change_percentage'][target_date]
-        if current_drop_pct >= 0:
+        if numpy.isnan(current_drop_pct) or current_drop_pct >= 0:
             return None
         # condition 1: price drops is bigger than 95% of history drops
         drop_history = price_history[price_history.adjusted_change_percentage < 0]
-        top_drops = drop_history[drop_history.adjusted_change_percentage < current_drop_pct]
+        top_drops = drop_history[drop_history.adjusted_change_percentage <= current_drop_pct]
         if top_drops.shape[0] / drop_history.shape[0] > self.top_drop_pct:
             return None
         # condition 2: price recovered by 5% more within 5 days

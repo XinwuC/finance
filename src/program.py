@@ -10,7 +10,8 @@ from stock.us.stock_history_prices import StockHistoryPrices
 from stock.us.stock_listings import StockListings
 from stock.us.strategy_executor import StrategyExecutor
 
-if __name__ == '__main__':
+
+def run_us_market():
     # init logging
     os.makedirs('logs', exist_ok=True)
     logging.config.dictConfig(Configuration.get_logging_config())
@@ -57,3 +58,9 @@ if __name__ == '__main__':
             smtp.sendmail(msg['From'], msg['To'], msg.as_string())
             logging.info('Send opportunities throuhg mail to %s', msg['To'])
 
+
+if __name__ == '__main__':
+    try:
+        run_us_market()
+    except BaseException as e:
+        logging.exception(e)
