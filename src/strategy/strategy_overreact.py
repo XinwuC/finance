@@ -83,8 +83,8 @@ class OverReactStrategy(Strategy):
             self.logger.info('Overreact Strategy: %s [%s] %s buying %s -> selling %s' % (
                 target_date, market, symbol, buy_price, target_price))
             return pandas.Series({'date': target_date, 'market': market, 'symbol': symbol,
-                                  'buying_price': buy_price,
-                                  'target_price': target_price,
+                                  'buying_price': price_history["Adj Close"][target_date],
+                                  'target_price': price_history["Adj Close"][target_date] * (1 + self.target_recover_rate),
                                   'drop_pct': current_drop_pct,
                                   'top_drop_count': top_drops.shape[0],
                                   'drop_count': drop_history.shape[0],
