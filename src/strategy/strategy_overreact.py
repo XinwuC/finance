@@ -44,8 +44,8 @@ class OverReactStrategy(Strategy):
         """
         if market is None or symbol is None:
             raise Exception('Invalid Argument: market %s, symbol %s' % (market, symbol))
-        if price_history is None:
-            raise Exception('None object: price_history')
+        if price_history is None or price_history.empty:
+            return None
         if target_date is None or price_history.iloc[dateutil.parser.parse(target_date)] is None:
             target_date = price_history.first_valid_index()
         # condition 0: price dropped on target day
