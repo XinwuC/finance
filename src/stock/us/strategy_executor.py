@@ -29,8 +29,6 @@ class StrategyExecutor:
             result = self._run_strategy(strategy)
             if result is not None and not result.empty:
                 buying_options[strategy.name] = result
-                # TODO remove save to csv later
-                result.to_csv('%s-%s.csv' % (strategy.name, datetime.date.today()))
                 with pandas.option_context('display.max_rows', 10, 'expand_frame_repr', False):
                     self.logger.debug('%s analysis results:\n%s' % (strategy.name, result))
         return buying_options
