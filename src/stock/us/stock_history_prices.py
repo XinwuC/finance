@@ -48,7 +48,7 @@ class StockHistoryPrices:
                 stocks = pandas.read_excel(listings, market)
                 for stock in stocks.itertuples():
                     total_symbols += 1
-                    (yahoo_error, google_error) = self.update_history_prices(market, stock)
+                    (yahoo_error, google_error) = self._update_history_prices(market, stock)
                     yahoo_errors += yahoo_error
                     google_errors += google_error
                     symbols_no_data += (2 == yahoo_error + google_error)
@@ -56,11 +56,11 @@ class StockHistoryPrices:
             'Stock prices update completed, %s (%s) symbols has no data, yahoo has %s errors and google has %s errors.',
             symbols_no_data, total_symbols, yahoo_errors, google_errors)
 
-    def update_history_prices(self, market, stock, end_date: datetime = datetime.date.today()):
+    def _update_history_prices(self, market, stock, end_date: datetime = datetime.date.today()):
         year = int(stock.IPOyear) if stock.IPOyear != 'n/a' else self.configs.default_first_history_year
         start = datetime.datetime(year, 1, 1)
         yahoo_data = self._get_yahoo_data(market, stock, start, end_date)
-        google_data = None  # self._get_google_data(market, stock, start, end)
+        google_data = self._get_google_data(market, stock, start, end_date)
         stock_prices = self._reconcile_data(yahoo_data, google_data)
 
         if stock_prices is not None:
@@ -86,6 +86,7 @@ class StockHistoryPrices:
         google_data = None
         try:
             google_data = web.get_data_google(stock.Symbol.strip(), start, end)
+            google_data["Adj Close"] = google_data["Close"]
         except Exception as e:
             self.logger.error("Failed to get Google data for [%s] %s - %s price history, %s", market.upper(),
                               stock.Symbol.strip(),
