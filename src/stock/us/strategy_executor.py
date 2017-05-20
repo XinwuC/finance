@@ -1,18 +1,16 @@
-import datetime
 import logging.config
-import os
 import re
 
 import pandas
 
-from configs.configuration import Configuration
 from strategy.strategy import Strategy
+from utility.utility import *
 
 
 class StrategyExecutor:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.configs = Configuration.get_us_config()
+        self.configs = Utility.get_us_config()
         self.strategies = []
         for strategy_name in self.configs.strategy.list:
             strategy = Strategy.get_strategy(strategy_name, self.configs.strategy)
@@ -21,7 +19,7 @@ class StrategyExecutor:
                 self.logger.info("Strategy %s added." % strategy.name)
             else:
                 self.logger.error("Cannot find Strategy %s" % strategy_name)
-        self.history_folder = os.path.join(self.configs.data_path, self.configs.data_history_folder)
+        self.history_folder = Utility.get_data_folder(Market.US, DataFolder.Stock_History)
 
     def run(self):
         buying_options = {}
@@ -35,12 +33,12 @@ class StrategyExecutor:
 
     def _run_strategy(self, strategy) -> pandas.DataFrame:
         with os.scandir(self.history_folder) as it:
-            name_pattern = re.compile(r'\w+-\w+.csv')
+            name_pattern = re.compile(r'\w+-\w+-\w+.csv')
             name_extractor = re.compile(r'\w+')
             result = None  # pandas.DataFrame()
             for entry in os.scandir(self.history_folder):
                 if entry.is_file() and name_pattern.match(entry.name):
-                    (market, symbol, dummy) = name_extractor.findall(entry.name)
+                    (market, ipo, symbol, dummy) = name_extractor.findall(entry.name)
                     prices = pandas.read_csv(entry.path, index_col=0, parse_dates=True)
                     self.logger.info('Running strategy %s for [%s] %s' % (strategy.name, market, symbol))
                     buying_symbol = strategy.analysis(market, symbol, prices)

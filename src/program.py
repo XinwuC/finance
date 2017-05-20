@@ -5,25 +5,17 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from smtplib import SMTP
 
-from configs.configuration import Configuration
-from stock.us.stock_history_prices import StockHistoryPrices
-from stock.us.stock_listings import StockListings
+from stock.china.china_market import ChinaMarket
 from stock.us.strategy_executor import StrategyExecutor
+from stock.us.us_market import UsaMarket
+from utility.utility import Utility
 
 
 def run_us_market():
-    # init logging
-    os.makedirs('logs', exist_ok=True)
-    logging.config.dictConfig(Configuration.get_logging_config())
-    configs = Configuration.get_us_config()
-
     # refresh stock lists
-    stock_listings = StockListings()
-    stock_listings.refresh()
-
-    # refresh stock prices
-    stock_history_prices = StockHistoryPrices()
-    stock_history_prices.refresh()
+    us_market = UsaMarket()
+    us_market.refresh_listing()
+    us_market.refresh_stocks()
 
     # run us stock strategies
     strategy_executor = StrategyExecutor()
@@ -39,8 +31,7 @@ def run_us_market():
         html_content += '</body></html>'
 
         # write results to file
-        file_path = os.path.join(configs.data_path, configs.data_output_folder)
-        os.makedirs(file_path, exist_ok=True)
+        file_path = Utility.get_data_folder(Utility.Market.US, Utility.DataFolder.Output)
         file_name = os.path.join(file_path, '%s.txt' % datetime.date.today())
         with open(file_name, 'w+') as file:
             file.write(text_content)
@@ -56,11 +47,28 @@ def run_us_market():
             smtp.starttls()
             smtp.login('xwcheng@live.com', '2011fortesting')
             smtp.sendmail(msg['From'], msg['To'], msg.as_string())
-            logging.info('Send opportunities throuhg mail to %s', msg['To'])
+            logging.info('Send opportunities through mail to %s', msg['To'])
+
+
+def run_china_market():
+    market = ChinaMarket()
+    market.refresh_listing()
+    market.refresh_stocks()
 
 
 if __name__ == '__main__':
+    # init logging
+    os.makedirs('logs', exist_ok=True)
+    logging.config.dictConfig(Utility.get_logging_config())
+
     try:
         run_us_market()
+        logging.info("US market is finished.")
+    except BaseException as e:
+        logging.exception(e)
+
+    try:
+        run_china_market()
+        logging.info("China market is finished.")
     except BaseException as e:
         logging.exception(e)

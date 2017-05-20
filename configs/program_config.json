@@ -1,18 +1,18 @@
 {
+  "history_start_date": "1985-01-01",
+  "data_path": "data",
   "us": {
-    "markets": [
+    "exchanges": [
       "nasdap",
       "nyse",
       "amex"
     ],
-    "default_first_history_year": 1985,
-    "data_path": "data/us/stocks/",
-    "data_history_folder": "history",
-    "data_output_folder": "output",
     "symbols_file": "symbols",
     "stock_list_provider": "http://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=%s&render=download",
     "strategy": {
-      "list": ["overreact"],
+      "list": [
+        "overreact"
+      ],
       "overreact": {
         "top_drop_pct": 0.05,
         "target_recover_rate": 0.05,
@@ -22,5 +22,11 @@
         "max_fallback_rate": 0.3
       }
     }
+  },
+  "china": {
+    "markets": [
+      " 上海 ",
+      " 深圳 "
+    ]
   }
 }
