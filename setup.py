@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     # Application name:
-    name="finance",
+    name="stock-bot",
 
     # Version number (initial):
     version="0.1.0",
@@ -13,28 +13,24 @@ setup(
     # Packages
     # packages=["finance"],
 
-    # Include additional files into the package
-    # include_package_data=True,
-
     # Details
-    # url="http://pypi.python.org/pypi/MyApplication_v010/",
+    url="https://github.com/XinwuC/finance",
 
-    #
-    # license="LICENSE.txt",
-    # description="Useful towel-related stuff.",
-
-    # long_description=open("README.txt").read(),
+    classifiers=[
+        'Programming Language :: Python :: 3.6',
+    ],
 
     # Dependent packages (distributions)
     install_requires=[
-        "Bottleneck",
-        "matplotlib",
-        "numexpr",
-        "numpy",
-        "dateutil",
-        "pandas",
-        "pandas-datareader",
-        "scipy",
-        "xlrd"
+        'backtrader>=1.9.48.116',
+        'tushare>=0.7.7',
+        'pandas>=0.20.1',
+        'pandas-datareader>=0.4.0',
+        'xlrd>=1.0.0',
+        'openpyxl>=2.4.7',
+        'lxml>=3.7.3',
+        'bottleneck>=1.2.1',
+        'scipy>=0.19.0',
+        'numexpr>=2.6.2',
     ],
 )
