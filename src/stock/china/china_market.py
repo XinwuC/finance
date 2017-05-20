@@ -4,13 +4,14 @@ import pandas
 import tushare as ts
 from pandas import ExcelWriter
 
+from strategy.strategy_executor import StrategyExecutor
 from utility.utility import *
 
 
 class ChinaMarket:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        pass
+        self.strategy_executor = StrategyExecutor(Market.China)
 
     def refresh_listing(self, excel_file=Utility.get_stock_listing_xlsx(Market.China)):
         """
@@ -75,3 +76,8 @@ class ChinaMarket:
             history_prices["adjusted_change_percentage"] = history_prices[StockPriceField.Close.value] / history_prices[
                 StockPriceField.Close.value].shift(-1) - 1
         return history_prices
+
+    def run_strategies(self):
+        return self.strategy_executor.run()
+
+

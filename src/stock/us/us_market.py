@@ -10,16 +10,18 @@ import logging
 import pandas
 import pandas_datareader.data as web
 
+from strategy.strategy_executor import StrategyExecutor
 from utility.utility import *
 
 
 class UsaMarket:
     def __init__(self,
-                 provider_url=Utility.get_us_config().stock_list_provider,
-                 exchanges=Utility.get_us_config().exchanges):
+                 provider_url=Utility.get_config(Market.US).stock_list_provider,
+                 exchanges=Utility.get_config(Market.US).exchanges):
         self.logger = logging.getLogger(__name__)
         self.provider_url = provider_url
         self.exchanges = exchanges
+        self.strategy_executor = StrategyExecutor(Market.US)
 
     def refresh_listing(self, excel_file=Utility.get_stock_listing_xlsx(Market.US)):
         """
@@ -103,6 +105,9 @@ class UsaMarket:
                 StockPriceField.Close.value].shift(-1) - 1
 
         return history_prices, yahoo_data is None, google_data is None
+
+    def run_strategies(self):
+        return self.strategy_executor.run()
 
     def _get_yahoo_data(self, exchange, symbol, start, end):
         yahoo_data = None

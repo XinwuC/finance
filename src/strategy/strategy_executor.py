@@ -8,18 +8,19 @@ from utility.utility import *
 
 
 class StrategyExecutor:
-    def __init__(self):
+    def __init__(self, market: Market):
         self.logger = logging.getLogger(__name__)
-        self.configs = Utility.get_us_config()
+        self.configs = Utility.get_config(market)
         self.strategies = []
         for strategy_name in self.configs.strategy.list:
             strategy = Strategy.get_strategy(strategy_name, self.configs.strategy)
             if strategy is not None:
                 self.strategies.append(strategy)
-                self.logger.info("Strategy %s added." % strategy.name)
+                self.logger.info("Strategy %s added for market %s" % (strategy.name, market.value))
             else:
-                self.logger.error("Cannot find Strategy %s" % strategy_name)
-        self.history_folder = Utility.get_data_folder(Market.US, DataFolder.Stock_History)
+                self.logger.error("Cannot find Strategy %s for market %s" % (strategy_name, market.value))
+        # set history folder
+        self.history_folder = Utility.get_data_folder(market, DataFolder.Stock_History)
 
     def run(self):
         buying_options = {}
@@ -38,10 +39,10 @@ class StrategyExecutor:
             result = None  # pandas.DataFrame()
             for entry in os.scandir(self.history_folder):
                 if entry.is_file() and name_pattern.match(entry.name):
-                    (market, ipo, symbol, dummy) = name_extractor.findall(entry.name)
+                    (exchange, ipo, symbol, dummy) = name_extractor.findall(entry.name)
                     prices = pandas.read_csv(entry.path, index_col=0, parse_dates=True)
-                    self.logger.info('Running strategy %s for [%s] %s' % (strategy.name, market, symbol))
-                    buying_symbol = strategy.analysis(market, symbol, prices)
+                    self.logger.info('Running strategy %s for [%s] %s' % (strategy.name, exchange, symbol))
+                    buying_symbol = strategy.analysis(symbol, prices)
                     if buying_symbol is not None:
                         if result is None:
                             result = pandas.DataFrame(buying_symbol).T

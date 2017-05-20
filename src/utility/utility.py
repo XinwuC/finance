@@ -50,20 +50,17 @@ class Utility:
         return Utility.__logging_config
 
     @staticmethod
-    def get_config(filename='configs/program_config.json'):
+    def get_config(market: Market = None, filename='configs/program_config.json'):
         if Utility.__program_config is None:
             with open(filename) as config:
                 Utility.__program_config = json.load(config,
                                                      object_hook=lambda d: namedtuple('X', d.keys())(*d.values()))
-        return Utility.__program_config
-
-    @staticmethod
-    def get_us_config():
-        return Utility.get_config().us
-
-    @staticmethod
-    def get_china_config():
-        return Utility.get_config().china
+        if Market.US == market:
+            return Utility.__program_config.us
+        elif Market.China == market:
+            return Utility.__program_config.china
+        else:
+            return Utility.__program_config
 
     @staticmethod
     def get_data_folder(market: Market, folder: DataFolder) -> str:

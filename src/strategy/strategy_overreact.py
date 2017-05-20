@@ -2,13 +2,14 @@
 Strategy: capture over-react price drop for sudden events
 """
 
-import datetime
 import logging
-import numpy
+
 import dateutil
+import numpy
 import pandas
 
 from strategy.strategy import Strategy
+from utility.utility import *
 
 
 class OverReactStrategy(Strategy):
@@ -30,8 +31,7 @@ class OverReactStrategy(Strategy):
             else allowed_max_fallback_rate
         self.logger = logging.getLogger(__name__)
 
-    def analysis(self, market: str, symbol: str, price_history: pandas.DataFrame,
-                 target_date: datetime.date = None) -> dict:
+    def analysis(self, symbol: str, price_history: pandas.DataFrame, target_date: datetime.date = None) -> dict:
         """
         Analysis and trigger if the symbol price has seen over reaction drops for the latest day.
     
@@ -42,8 +42,8 @@ class OverReactStrategy(Strategy):
         :param price_history: a 2-D data frame that has price history  
         :return: True: buying candidate; False: Not buying candidate
         """
-        if market is None or symbol is None:
-            raise Exception('Invalid Argument: market %s, symbol %s' % (market, symbol))
+        if symbol is None:
+            raise Exception('Invalid Argument: symbol %s' % symbol)
         if price_history is None or price_history.empty:
             return None
         if target_date is None or price_history.iloc[dateutil.parser.parse(target_date)] is None:
@@ -61,7 +61,7 @@ class OverReactStrategy(Strategy):
         hit_target_price_count = 0
         hit_max_fallback_count = 0
         for date in top_drops.index.tolist():
-            buy_price = price_history["Adj Close"].shift(1)[date]
+            buy_price = price_history[StockPriceField.AdjustPrice.value].shift(1)[date]
             target_price = buy_price * (1 + self.target_recover_rate)
             fallback_price = buy_price * (1 + self.max_allowed_fallback)
             hit_target_price = False
@@ -69,22 +69,23 @@ class OverReactStrategy(Strategy):
             index = price_history.index.get_loc(date) - 1
             for day in range(1, self.recover_days + 1):
                 if index - day >= 0:
-                    if price_history["Adj Close"].iloc[index - day] > target_price:
+                    if price_history[StockPriceField.AdjustPrice.value].iloc[index - day] > target_price:
                         hit_target_price = True
                         break
                     else:
-                        last_price = price_history["Adj Close"].iloc[index - day]
+                        last_price = price_history[StockPriceField.AdjustPrice.value].iloc[index - day]
             if hit_target_price:
                 hit_target_price_count += 1
             elif last_price < fallback_price:
                 hit_max_fallback_count += 1
         if hit_target_price_count / top_drops.shape[0] > self.recover_success_rate \
                 and hit_max_fallback_count / top_drops.shape[0] < self.allowed_max_fallback_rate:
-            self.logger.info('Overreact Strategy: %s [%s] %s buying %s -> selling %s' % (
-                target_date, market, symbol, buy_price, target_price))
-            return pandas.Series({'date': target_date, 'market': market, 'symbol': symbol,
-                                  'buying_price': price_history["Adj Close"][target_date],
-                                  'target_price': price_history["Adj Close"][target_date] * (1 + self.target_recover_rate),
+            self.logger.info('Overreact Strategy: %s [%s] buying %s -> selling %s' % (
+                target_date, symbol, buy_price, target_price))
+            return pandas.Series({'date': target_date, 'symbol': symbol,
+                                  'buying_price': price_history[StockPriceField.AdjustPrice.value][target_date],
+                                  'target_price': price_history[StockPriceField.AdjustPrice.value][target_date] * (
+                                      1 + self.target_recover_rate),
                                   'drop_pct': current_drop_pct,
                                   'top_drop_count': top_drops.shape[0],
                                   'drop_count': drop_history.shape[0],
