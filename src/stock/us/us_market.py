@@ -10,14 +10,16 @@ import logging
 import pandas
 import pandas_datareader.data as web
 
+from stock.stock_market import StockMarket
 from strategy.strategy_executor import StrategyExecutor
 from utility.utility import *
 
 
-class UsaMarket:
+class UsaMarket(StockMarket):
     def __init__(self,
                  provider_url=Utility.get_config(Market.US).stock_list_provider,
                  exchanges=Utility.get_config(Market.US).exchanges):
+        super(UsaMarket, self).__init__(Market.US)
         self.logger = logging.getLogger(__name__)
         self.provider_url = provider_url
         self.exchanges = exchanges

@@ -4,12 +4,14 @@ import pandas
 import tushare as ts
 from pandas import ExcelWriter
 
+from stock.stock_market import StockMarket
 from strategy.strategy_executor import StrategyExecutor
 from utility.utility import *
 
 
-class ChinaMarket:
+class ChinaMarket(StockMarket):
     def __init__(self):
+        super(ChinaMarket, self).__init__(Market.China)
         self.logger = logging.getLogger(__name__)
         self.strategy_executor = StrategyExecutor(Market.China)
 
@@ -79,5 +81,3 @@ class ChinaMarket:
 
     def run_strategies(self):
         return self.strategy_executor.run()
-
-

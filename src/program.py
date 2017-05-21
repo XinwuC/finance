@@ -1,5 +1,6 @@
 #! /usr/local/bin/python3
 
+import argparse
 import logging.config
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -8,21 +9,6 @@ from smtplib import SMTP
 from stock.china.china_market import ChinaMarket
 from stock.us.us_market import UsaMarket
 from utility.utility import *
-
-
-def run_us_market():
-    # refresh stock lists
-    us_market = UsaMarket()
-    us_market.refresh_listing()
-    us_market.refresh_stocks()
-    return us_market.run_strategies()
-
-
-def run_china_market():
-    market = ChinaMarket()
-    market.refresh_listing()
-    market.refresh_stocks()
-    return market.run_strategies()
 
 
 def record_buyings(buyings={}):
@@ -63,27 +49,68 @@ def record_buyings(buyings={}):
         logging.info('Send opportunities through mail to %s', msg['To'])
 
 
+def parse_argument():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--country', dest='country',
+                        help='which country to run, currently only support us and china. skip to run both',
+                        choices=[Market.US.value, Market.China.value, 'all'],
+                        required=False, default='all', nargs='*')
+    parser.add_argument('-m', '--mode', dest='mode',
+                        help='''
+                        which functions to run\n\n
+                        listing - refresh stock listings\n
+                        history - update price history for each listing\n
+                        strategy - run all strategies to find buying options''',
+                        choices=['all', 'listing', 'history', 'strategy'],
+                        required=False, default='all', nargs='*')
+    return parser.parse_args()
+
+
+def run(args):
+    # add countries to run
+    markets = []
+    if 'all' in args.country:
+        markets.append(UsaMarket())
+        markets.append(ChinaMarket())
+    else:
+        for c in args.country:
+            if Market.US.value == c:
+                markets.append(UsaMarket())
+            elif Market.China.value == c:
+                markets.append(ChinaMarket())
+
+    # execute functions as demanded
+    buyings = {}
+    for market in markets:
+        if 'listing' in args.mode or 'all' in args.mode:
+            try:
+                market.refresh_listing()
+            except Exception as e:
+                logging.exception('Failed to refresh listing for %s' % market.market, e)
+        if 'history' in args.mode or 'all' in args.mode:
+            try:
+                market.refresh_stocks()
+            except Exception as e:
+                logging.exception('Failed to refresh price history for %s' % market.market, e)
+        if 'strategy' in args.mode or 'all' in args.mode:
+            try:
+                buyings[market.market] = market.run_strategies()
+                logging.info(
+                    '%s strategies found opportunities for market %s.' % (len(buyings[market.market]), market.market))
+            except Exception as e:
+                logging.exception('Failed to run strategies for %s' % market.market, e)
+
+    # record buying options if strategies have been evaluated
+    if 'strategy' in args.mode or 'all' in args.mode:
+        record_buyings(buyings)
+
+
 if __name__ == '__main__':
     # init logging
     os.makedirs('logs', exist_ok=True)
     logging.config.dictConfig(Utility.get_logging_config())
 
-    buyings = {}
     try:
-        buyings[Market.US] = run_us_market()
-        logging.info(
-            '%s strategies found opportunities for market %s.' % (len(buyings[Market.US]), Market.US.value))
-    except BaseException as e:
-        logging.exception(e)
-
-    try:
-        buyings[Market.China] = run_china_market()
-        logging.info(
-            '%s strategies found opportunities for market %s.' % (len(buyings[Market.China]), Market.China.value))
-    except BaseException as e:
-        logging.exception(e)
-
-    try:
-        record_buyings(buyings)
-    except BaseException as e:
+        run(parse_argument())
+    except Exception as e:
         logging.exception(e)
