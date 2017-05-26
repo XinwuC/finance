@@ -5,7 +5,6 @@ import tushare as ts
 from pandas import ExcelWriter
 
 from stock.stock_market import StockMarket
-from strategy.strategy_executor import StrategyExecutor
 from utility.utility import *
 
 
@@ -13,7 +12,6 @@ class ChinaMarket(StockMarket):
     def __init__(self):
         super(ChinaMarket, self).__init__(Market.China)
         self.logger = logging.getLogger(__name__)
-        self.strategy_executor = StrategyExecutor(Market.China)
 
     def refresh_listing(self, excel_file=Utility.get_stock_listing_xlsx(Market.China)):
         """
@@ -35,7 +33,7 @@ class ChinaMarket(StockMarket):
         except Exception as e:
             self.logger.error('Fetching stock listings error for China market: %s', e)
 
-    def refresh_stocks(self):
+    def refresh_stocks(self, stock_list: [] = []):
         with pandas.ExcelFile(Utility.get_stock_listing_xlsx(Market.China, latest=True)) as listings_file:
             listings = pandas.read_excel(listings_file, Market.China.value,
                                          dtype={ListingField.Symbol.value: str},
@@ -47,6 +45,8 @@ class ChinaMarket(StockMarket):
             total_symbols = 0
             symbols_no_data = 0
             for stock in listings.itertuples():
+                if stock_list and stock.Symbol not in stock_list:
+                    continue  # skip stock that is not in stock_list
                 total_symbols += 1
                 history_prices = self.refresh_stock(stock.Symbol, stock.IPO)
                 if history_prices is not None and not history_prices.empty:
@@ -74,10 +74,7 @@ class ChinaMarket(StockMarket):
                                            'volume': StockPriceField.Volume.value}, index=str, inplace=True)
             history_prices.set_index(StockPriceField.Date.value, inplace=True, verify_integrity=True)
             history_prices.sort_index(inplace=True, ascending=False)
-            history_prices[StockPriceField.AdjustPrice.value] = history_prices[StockPriceField.Close.value]
+            history_prices[StockPriceField.AdjustedClose.value] = history_prices[StockPriceField.Close.value]
             history_prices["adjusted_change_percentage"] = history_prices[StockPriceField.Close.value] / history_prices[
                 StockPriceField.Close.value].shift(-1) - 1
         return history_prices
-
-    def run_strategies(self):
-        return self.strategy_executor.run()

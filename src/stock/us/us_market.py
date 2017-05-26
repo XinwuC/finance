@@ -11,7 +11,6 @@ import pandas
 import pandas_datareader.data as web
 
 from stock.stock_market import StockMarket
-from strategy.strategy_executor import StrategyExecutor
 from utility.utility import *
 
 
@@ -23,7 +22,6 @@ class UsaMarket(StockMarket):
         self.logger = logging.getLogger(__name__)
         self.provider_url = provider_url
         self.exchanges = exchanges
-        self.strategy_executor = StrategyExecutor(Market.US)
 
     def refresh_listing(self, excel_file=Utility.get_stock_listing_xlsx(Market.US)):
         """
@@ -51,7 +49,7 @@ class UsaMarket(StockMarket):
         except Exception as e:
             self.logger.exception('Saving stock listings failed: %s', e)
 
-    def refresh_stocks(self):
+    def refresh_stocks(self, stock_list: [] = []):
         """
         Refresh stock price history. It will first get latest symbols list from the web services provided in configs,
         then fetch stock price history from Yahoo! and Google, Yahoo! data take precedence over Google data.
@@ -75,13 +73,15 @@ class UsaMarket(StockMarket):
                                                str(x)) if x != 'n/a' else pandas.to_datetime(
                                                Utility.get_config().history_start_date))
                 for stock in stocks.itertuples():
+                    if stock_list and stock.Symbol not in stock_list:
+                        continue  # skip stock that is not in stock_list
                     total_symbols += 1
                     (stock_prices, yahoo_error, google_error) = self.refresh_stock(exchange, stock.Symbol, stock.IPO)
                     if stock_prices is not None:
                         stock_prices.to_csv(
                             Utility.get_stock_price_history_file(Market.US, stock.Symbol, stock.IPO.year, exchange))
-                        self.logger.info('Updated price history for (%s)(%s) [%s] %s, IPO %s',
-                                         stock.Sector, stock.Industry, exchange.upper(), stock.Symbol, stock.IPO.date())
+                        self.logger.info('Updated price history for [%s] %s, IPO %s',
+                                         exchange.upper(), stock.Symbol, stock.IPO.date())
                     yahoo_errors += yahoo_error
                     google_errors += google_error
                     symbols_no_data += (2 == yahoo_error + google_error)
@@ -100,16 +100,13 @@ class UsaMarket(StockMarket):
                                            'Close': StockPriceField.Close.value,
                                            'High': StockPriceField.High.value,
                                            'Low': StockPriceField.Low.value,
-                                           'Adj Close': StockPriceField.AdjustPrice.value,
+                                           'Adj Close': StockPriceField.AdjustedClose.value,
                                            'Volume': StockPriceField.Volume.value}, index=str, inplace=True)
             history_prices.sort_index(inplace=True, ascending=False)
             history_prices["adjusted_change_percentage"] = history_prices[StockPriceField.Close.value] / history_prices[
                 StockPriceField.Close.value].shift(-1) - 1
 
         return history_prices, yahoo_data is None, google_data is None
-
-    def run_strategies(self):
-        return self.strategy_executor.run()
 
     def _get_yahoo_data(self, exchange, symbol, start, end):
         yahoo_data = None
@@ -125,7 +122,7 @@ class UsaMarket(StockMarket):
             google_data = web.get_data_google(symbol.strip(), start, end)
             google_data["Adj Close"] = google_data["Close"]
         except Exception as e:
-            self.logger.error("Failed to get Google data for [%s] %s price history, %s", exchange.upper(), symbol, e)
+            self.logger.error("Failed to get Google data for [%s] (%s) price history, %s", exchange.upper(), symbol, e)
         return google_data
 
     def _reconcile_data(self, yahoo_data, google_data):

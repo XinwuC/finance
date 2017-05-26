@@ -28,13 +28,13 @@ class ListingField(Enum):
 
 
 class StockPriceField(Enum):
-    Date = 'date'
-    Open = 'open'
-    Close = 'close'
-    High = 'high'
-    Low = 'low'
-    Volume = 'volume'
-    AdjustPrice = 'adjust_price'
+    Date = 'Date'
+    Open = 'Open'
+    Close = 'Close'
+    High = 'High'
+    Low = 'Low'
+    Volume = 'Volume'
+    AdjustedClose = 'AdjustedClose'
 
 
 class Utility:

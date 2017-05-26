@@ -63,6 +63,9 @@ def parse_argument():
                         strategy - run all strategies to find buying options''',
                         choices=['all', 'listing', 'history', 'strategy'],
                         required=False, default='all', nargs='*')
+    parser.add_argument('-s', '--stocks', dest='stocks',
+                        help='a stock list to run',
+                        required=False, nargs='*')
     return parser.parse_args()
 
 
@@ -89,12 +92,12 @@ def run(args):
                 logging.exception('Failed to refresh listing for %s' % market.market, e)
         if 'history' in args.mode or 'all' in args.mode:
             try:
-                market.refresh_stocks()
+                market.refresh_stocks(stock_list=args.stocks)
             except Exception as e:
                 logging.exception('Failed to refresh price history for %s' % market.market, e)
         if 'strategy' in args.mode or 'all' in args.mode:
             try:
-                buyings[market.market] = market.run_strategies()
+                buyings[market.market] = market.run_strategies(stock_list=args.stocks)
                 logging.info(
                     '%s strategies found opportunities for market %s.' % (len(buyings[market.market]), market.market))
             except Exception as e:
