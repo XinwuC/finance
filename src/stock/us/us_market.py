@@ -17,11 +17,13 @@ from utility.utility import *
 class UsaMarket(StockMarket):
     def __init__(self,
                  provider_url=Utility.get_config(Market.US).stock_list_provider,
-                 exchanges=Utility.get_config(Market.US).exchanges):
+                 exchanges=Utility.get_config(Market.US).exchanges,
+                 retry=Utility.get_config().data_retry):
         super(UsaMarket, self).__init__(Market.US)
         self.logger = logging.getLogger(__name__)
         self.provider_url = provider_url
         self.exchanges = exchanges
+        self.retry = retry
 
     def refresh_listing(self, excel_file=Utility.get_stock_listing_xlsx(Market.US)):
         """
@@ -110,19 +112,25 @@ class UsaMarket(StockMarket):
 
     def _get_yahoo_data(self, exchange, symbol, start, end):
         yahoo_data = None
-        try:
-            yahoo_data = web.get_data_yahoo(symbol, start, end)
-        except Exception as e:
-            self.logger.error("Failed to get Yahoo! data for [%s] (%s) price history, %s", exchange.upper(), symbol, e)
+        for i in range(self.retry):
+            try:
+                yahoo_data = web.get_data_yahoo(symbol, start, end)
+                break
+            except Exception as e:
+                self.logger.error("Failed to get Yahoo! data for [%s] (%s) price history, %s", exchange.upper(), symbol,
+                                  e)
         return yahoo_data
 
     def _get_google_data(self, exchange, symbol, start, end):
         google_data = None
-        try:
-            google_data = web.get_data_google(symbol.strip(), start, end)
-            google_data["Adj Close"] = google_data["Close"]
-        except Exception as e:
-            self.logger.error("Failed to get Google data for [%s] (%s) price history, %s", exchange.upper(), symbol, e)
+        for i in range(self.retry):
+            try:
+                google_data = web.get_data_google(symbol.strip(), start, end)
+                google_data["Adj Close"] = google_data["Close"]
+                break
+            except Exception as e:
+                self.logger.error("Failed to get Google data for [%s] (%s) price history, %s", exchange.upper(), symbol,
+                                  e)
         return google_data
 
     def _reconcile_data(self, yahoo_data, google_data):

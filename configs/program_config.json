@@ -1,6 +1,7 @@
 {
   "history_start_date": "1985-01-01",
   "data_path": "data",
+  "data_retry": 3,
   "us": {
     "exchanges": [
       "nasdaq",

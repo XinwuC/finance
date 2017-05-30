@@ -63,7 +63,8 @@ class ChinaMarket(StockMarket):
 
     @staticmethod
     def refresh_stock(symbol: str, start_date: datetime, end_date=datetime.date.today()):
-        history_prices = ts.get_k_data(code=symbol, start=start_date.isoformat(), end=end_date.isoformat())
+        history_prices = ts.get_k_data(code=symbol, start=start_date.isoformat(), end=end_date.isoformat(),
+                                       retry_count=Utility.get_config().data_retry)
         if history_prices is not None and not history_prices.empty:
             del history_prices['code']
             history_prices.rename(columns={'date': StockPriceField.Date.value,
