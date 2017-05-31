@@ -92,9 +92,8 @@ class UsaMarket(StockMarket):
             symbols_no_data, total_symbols, yahoo_errors, google_errors)
 
     def refresh_stock(self, exchange: str, symbol: str, start_date: datetime, end_date=datetime.date.today()):
-        yahoo_data = self._get_yahoo_data(exchange, symbol, start_date, end_date)
-        google_data = self._get_google_data(exchange, symbol, start_date, end_date)
-        history_prices = self._reconcile_data(yahoo_data, google_data)
+        history_prices = self._get_yahoo_data(exchange, symbol, start_date, end_date) or \
+                         self._get_google_data(exchange, symbol, start_date, end_date)
 
         if history_prices is not None:
             history_prices.index.rename(StockPriceField.Date.value, inplace=True)
@@ -108,7 +107,7 @@ class UsaMarket(StockMarket):
             history_prices["adjusted_change_percentage"] = history_prices[StockPriceField.Close.value] / history_prices[
                 StockPriceField.Close.value].shift(-1) - 1
 
-        return history_prices, yahoo_data is None, google_data is None
+        return history_prices, history_prices is None, history_prices is None
 
     def _get_yahoo_data(self, exchange, symbol, start, end):
         yahoo_data = None

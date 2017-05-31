@@ -11,7 +11,7 @@ from stock.us.us_market import UsaMarket
 from utility.utility import *
 
 
-def record_buyings(buyings={}):
+def record_buyings(buyings={}, send_mail=True):
     text_content = ''
     html_content = '<html><head /><body>'
     count = 0
@@ -31,7 +31,7 @@ def record_buyings(buyings={}):
     if count > 0:
         # write results to file
         file_path = Utility.get_data_folder(Market.US, DataFolder.Output)
-        file_name = os.path.join(file_path, '%s.txt' % datetime.date.today())
+        file_name = os.path.join(file_path, '%s.txt' % datetime.datetime.today())
         with open(file_name, 'w+') as file:
             file.write(text_content)
 
@@ -42,11 +42,12 @@ def record_buyings(buyings={}):
     else:
         msg['Subject'] = 'No stocks buying options'
 
-    with SMTP('smtp.live.com', '587') as smtp:
-        smtp.starttls()
-        smtp.login('xwcheng@live.com', '2011fortesting')
-        smtp.sendmail(msg['From'], msg['To'], msg.as_string())
-        logging.info('Send opportunities through mail to %s', msg['To'])
+    if send_mail:
+        with SMTP('smtp.live.com', '587') as smtp:
+            smtp.starttls()
+            smtp.login('xwcheng@live.com', '2011fortesting')
+            smtp.sendmail(msg['From'], msg['To'], msg.as_string())
+            logging.info('Send opportunities through mail to %s', msg['To'])
 
 
 def parse_argument():
@@ -63,9 +64,8 @@ def parse_argument():
                         strategy - run all strategies to find buying options''',
                         choices=['all', 'listing', 'history', 'strategy'],
                         required=False, default='all', nargs='*')
-    parser.add_argument('-s', '--stocks', dest='stocks',
-                        help='a stock list to run',
-                        required=False, nargs='*')
+    parser.add_argument('-s', '--stocks', dest='stocks', help='a stock list to run', required=False, nargs='*')
+    parser.add_argument('--send_mail', dest='send_mail', help='send mail after run strategies', action='store_true')
     return parser.parse_args()
 
 
@@ -105,7 +105,7 @@ def run(args):
 
     # record buying options if strategies have been evaluated
     if 'strategy' in args.mode or 'all' in args.mode:
-        record_buyings(buyings)
+        record_buyings(buyings, args.send_mail)
 
 
 if __name__ == '__main__':
