@@ -92,8 +92,9 @@ class UsaMarket(StockMarket):
             symbols_no_data, total_symbols, yahoo_errors, google_errors)
 
     def refresh_stock(self, exchange: str, symbol: str, start_date: datetime, end_date=datetime.date.today()):
-        history_prices = self._get_yahoo_data(exchange, symbol, start_date, end_date) or \
-                         self._get_google_data(exchange, symbol, start_date, end_date)
+        history_prices = self._get_yahoo_data(exchange, symbol, start_date, end_date)
+        if history_prices is None or history_prices.empty:
+            history_prices = self._get_google_data(exchange, symbol, start_date, end_date)
 
         if history_prices is not None:
             history_prices.index.rename(StockPriceField.Date.value, inplace=True)
