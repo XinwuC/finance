@@ -6,6 +6,7 @@ Source provider is http://www.nasdaq.com/screening/company-list.aspx
 """
 
 import logging
+import re
 
 import pandas
 import pandas_datareader.data as web
@@ -67,6 +68,7 @@ class UsaMarket(StockMarket):
         symbols_no_data = 0
         yahoo_errors = 0
         google_errors = 0
+        symbol_pattern = re.compile(r'^(\w|\.)+$')
         with pandas.ExcelFile(Utility.get_stock_listing_xlsx(Market.US, latest=True)) as listings:
             for exchange in listings.sheet_names:
                 self.logger.info('Fetching stock history prices from exchange %s.', exchange.upper())
@@ -77,6 +79,8 @@ class UsaMarket(StockMarket):
                 for stock in stocks.itertuples():
                     if stock_list and stock.Symbol not in stock_list:
                         continue  # skip stock that is not in stock_list
+                    if not symbol_pattern.match(stock.Symbol):
+                        continue  # skip invalid symbols
                     total_symbols += 1
                     (stock_prices, yahoo_error, google_error) = self.refresh_stock(exchange, stock.Symbol, stock.IPO)
                     if stock_prices is not None:
