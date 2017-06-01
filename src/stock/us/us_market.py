@@ -118,7 +118,7 @@ class UsaMarket(StockMarket):
         yahoo_data = None
         for i in range(self.retry):
             try:
-                yahoo_data = web.get_data_yahoo(symbol, start, end)
+                yahoo_data = web.get_data_yahoo(symbol.strip(), start, end)
                 break
             except Exception as e:
                 self.logger.error("Failed to get Yahoo! data for [%s] (%s) price history, %s", exchange.upper(), symbol,
