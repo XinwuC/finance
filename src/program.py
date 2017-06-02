@@ -1,4 +1,4 @@
-#! /usr/local/bin/python3
+#! /usr/bin/python
 
 import argparse
 import logging.config
@@ -87,17 +87,29 @@ def run(args):
     for market in markets:
         if 'listing' in args.mode or 'all' in args.mode:
             try:
+                start = datetime.datetime.now()
                 market.refresh_listing()
+                end = datetime.datetime.now()
+                logging.info('Timing: refresh listing for market %s in %s second.', market.market,
+                             (end - start) // datetime.timedelta(seconds=1))
             except Exception as e:
                 logging.exception('Failed to refresh listing for %s' % market.market, e)
         if 'history' in args.mode or 'all' in args.mode:
             try:
+                start = datetime.datetime.now()
                 market.refresh_stocks(stock_list=args.stocks)
+                end = datetime.datetime.now()
+                logging.info('Timing: refresh price history for market %s in %s minutes.', market.market,
+                             (end - start) // datetime.timedelta(minutes=1))
             except Exception as e:
                 logging.exception('Failed to refresh price history for %s' % market.market, e)
         if 'strategy' in args.mode or 'all' in args.mode:
             try:
+                start = datetime.datetime.now()
                 buyings[market.market] = market.run_strategies(stock_list=args.stocks)
+                end = datetime.datetime.now()
+                logging.info('Timing: run strategies for market %s in %s second.', market.market,
+                             (end - start) // datetime.timedelta(seconds=1))
                 logging.info(
                     '%s strategies found opportunities for market %s.' % (len(buyings[market.market]), market.market))
             except Exception as e:

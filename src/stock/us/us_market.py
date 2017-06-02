@@ -5,6 +5,7 @@ Source provider is http://www.nasdaq.com/screening/company-list.aspx
 
 """
 
+import concurrent.futures
 import logging
 import re
 
@@ -19,11 +20,13 @@ class UsaMarket(StockMarket):
     def __init__(self,
                  provider_url=Utility.get_config(Market.US).stock_list_provider,
                  exchanges=Utility.get_config(Market.US).exchanges,
+                 concurrent=Utility.get_config(Market.US).concurrent,
                  retry=Utility.get_config().data_retry):
         super(UsaMarket, self).__init__(Market.US)
         self.logger = logging.getLogger(__name__)
         self.provider_url = provider_url
         self.exchanges = exchanges
+        self.concurrent = concurrent
         self.retry = retry
 
     def refresh_listing(self, excel_file=Utility.get_stock_listing_xlsx(Market.US)):
@@ -69,28 +72,28 @@ class UsaMarket(StockMarket):
         yahoo_errors = 0
         google_errors = 0
         symbol_pattern = re.compile(r'^(\w|\.)+$')
-        with pandas.ExcelFile(Utility.get_stock_listing_xlsx(Market.US, latest=True)) as listings:
-            for exchange in listings.sheet_names:
-                self.logger.info('Fetching stock history prices from exchange %s.', exchange.upper())
-                stocks = pandas.read_excel(listings, exchange, parse_dates=[ListingField.IPO.value],
-                                           date_parser=lambda x: pandas.to_datetime(
-                                               str(x)) if x != 'n/a' else pandas.to_datetime(
-                                               Utility.get_config().history_start_date))
-                for stock in stocks.itertuples():
-                    if stock_list and stock.Symbol not in stock_list:
-                        continue  # skip stock that is not in stock_list
-                    if not symbol_pattern.match(stock.Symbol):
-                        continue  # skip invalid symbols
-                    total_symbols += 1
-                    (stock_prices, yahoo_error, google_error) = self.refresh_stock(exchange, stock.Symbol, stock.IPO)
-                    if stock_prices is not None:
-                        stock_prices.to_csv(
-                            Utility.get_stock_price_history_file(Market.US, stock.Symbol, stock.IPO.year, exchange))
-                        self.logger.info('Updated price history for [%s] %s, IPO %s',
-                                         exchange.upper(), stock.Symbol, stock.IPO.date())
-                    yahoo_errors += yahoo_error
-                    google_errors += google_error
-                    symbols_no_data += (2 == yahoo_error + google_error)
+        futures = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.concurrent) as executor:
+            with pandas.ExcelFile(Utility.get_stock_listing_xlsx(Market.US, latest=True)) as listings:
+                for exchange in listings.sheet_names:
+                    self.logger.info('Fetching stock history prices from exchange %s.', exchange.upper())
+                    stocks = pandas.read_excel(listings, exchange, parse_dates=[ListingField.IPO.value],
+                                               date_parser=lambda x: pandas.to_datetime(
+                                                   str(x)) if x != 'n/a' else pandas.to_datetime(
+                                                   Utility.get_config().history_start_date))
+                    for stock in stocks.itertuples():
+                        if stock_list and stock.Symbol not in stock_list:
+                            continue  # skip stock that is not in stock_list
+                        if not symbol_pattern.match(stock.Symbol):
+                            continue  # skip invalid symbols
+                        futures.append(executor.submit(self.refresh_stock, exchange, stock.Symbol, stock.IPO))
+                        total_symbols += 1
+
+        for future in futures:
+            (stock_prices, yahoo_error, google_error) = future.result()
+            yahoo_errors += yahoo_error
+            google_errors += google_error
+            symbols_no_data += (2 == yahoo_error + google_error)
         self.logger.error(
             'Stock prices update completed, %s (%s) symbols has no data, yahoo has %s errors and google has %s errors.',
             symbols_no_data, total_symbols, yahoo_errors, google_errors)
@@ -99,7 +102,6 @@ class UsaMarket(StockMarket):
         history_prices = self._get_yahoo_data(exchange, symbol, start_date, end_date)
         if history_prices is None or history_prices.empty:
             history_prices = self._get_google_data(exchange, symbol, start_date, end_date)
-
         if history_prices is not None:
             history_prices.index.rename(StockPriceField.Date.value, inplace=True)
             history_prices.rename(columns={'Open': StockPriceField.Open.value,
@@ -111,6 +113,8 @@ class UsaMarket(StockMarket):
             history_prices.sort_index(inplace=True, ascending=False)
             history_prices["adjusted_change_percentage"] = history_prices[StockPriceField.Close.value] / history_prices[
                 StockPriceField.Close.value].shift(-1) - 1
+            history_prices.to_csv(Utility.get_stock_price_history_file(Market.US, symbol, start_date.year, exchange))
+            self.logger.info('Updated price history for [%s] %s, IPO %s', exchange.upper(), symbol, start_date.date())
 
         return history_prices, history_prices is None, history_prices is None
 
