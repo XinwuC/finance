@@ -105,16 +105,13 @@ class UsaMarket(StockMarket):
         if history_prices is not None:
             history_prices.index.rename(StockPriceField.Date.value, inplace=True)
             history_prices.rename(columns={'Open': StockPriceField.Open.value,
-                                           'Close': StockPriceField.Close.value,
                                            'High': StockPriceField.High.value,
                                            'Low': StockPriceField.Low.value,
-                                           'Adj Close': StockPriceField.AdjustedClose.value,
+                                           'Close': StockPriceField.Close.value,
                                            'Volume': StockPriceField.Volume.value}, index=str, inplace=True)
-            history_prices.sort_index(inplace=True, ascending=False)
-            history_prices["adjusted_change_percentage"] = history_prices[StockPriceField.Close.value] / history_prices[
-                StockPriceField.Close.value].shift(-1) - 1
             history_prices.to_csv(Utility.get_stock_price_history_file(Market.US, symbol, start_date.year, exchange))
-            self.logger.info('Updated price history for [%s] %s, IPO %s', exchange.upper(), symbol, start_date.date())
+            self.logger.info('Updated price history for [%s] %s\t(%s - %s)', exchange.upper(), symbol, start_date.date(),
+                             end_date)
 
         return history_prices, history_prices is None, history_prices is None
 
@@ -122,7 +119,9 @@ class UsaMarket(StockMarket):
         yahoo_data = None
         for i in range(self.retry):
             try:
-                yahoo_data = web.get_data_yahoo(symbol.strip(), start, end)
+                yahoo_data = web.get_data_yahoo(symbol.strip(), start, end + datetime.timedelta(days=1))
+                yahoo_data['Close'] = yahoo_data['Adj Close']
+                del yahoo_data['Adj Close']
                 break
             except Exception as e:
                 self.logger.error("Failed to get Yahoo! data for [%s] (%s) price history, %s", exchange.upper(), symbol,
@@ -134,17 +133,8 @@ class UsaMarket(StockMarket):
         for i in range(self.retry):
             try:
                 google_data = web.get_data_google(symbol.strip(), start, end)
-                google_data["Adj Close"] = google_data["Close"]
                 break
             except Exception as e:
                 self.logger.error("Failed to get Google data for [%s] (%s) price history, %s", exchange.upper(), symbol,
                                   e)
         return google_data
-
-    def _reconcile_data(self, yahoo_data, google_data):
-        if yahoo_data is None:
-            return google_data
-        if google_data is None:
-            return yahoo_data
-        # TODO: add reconcile logic here, for now simply use yahoo_data first
-        return yahoo_data

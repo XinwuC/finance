@@ -20,7 +20,7 @@ class StrategyExecutor:
             else:
                 self.logger.error("Cannot find Strategy %s for market %s" % (strategy_name, market.value))
         # set history folder
-        self.history_folder = Utility.get_data_folder(market, DataFolder.Stock_History)
+        self.history_folder = Utility.get_data_folder(market=market, folder=DataFolder.Stock_History)
 
     def run(self, stock_list: [] = [], target_date: datetime.date = None):
         buying_options = {}

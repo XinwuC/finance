@@ -46,52 +46,52 @@ class OverReactStrategy(Strategy):
         if price_history is None or price_history.empty:
             return None
         if target_date is None:
-            target_date = price_history.first_valid_index()
-        # slicing price_history to keep only up to target_date data
-        price_history = price_history[target_date:]
+            target_date = price_history.index.max()
+
         # condition 0: price dropped on target day
-        current_drop_pct = price_history['adjusted_change_percentage'][target_date]
+        price_history.sort_index(inplace=True, ascending=True)
+        price_history['close_pct_change'] = price_history[StockPriceField.Close.value].pct_change()
+        # slicing price_history to keep only up to target_date data
+        price_history = price_history[:target_date]
+        current_drop_pct = price_history.close_pct_change[-1]
         # check if multiple records for the target date, which usually happen for partial day refresh
-        if isinstance(current_drop_pct, pandas.Series):
-            current_drop_pct = current_drop_pct[-1]
         if numpy.isnan(current_drop_pct) or current_drop_pct >= 0:
             return None
         # condition 1: price drops is bigger than 95% of history drops
-        drop_history = price_history[price_history.adjusted_change_percentage < 0]
-        top_drops = drop_history[drop_history.adjusted_change_percentage <= current_drop_pct]
+        buy_price = price_history[StockPriceField.Close.value][target_date]
+        sell_price = buy_price * (1 + self.target_recover_rate)
+        drop_history = price_history[price_history.close_pct_change < 0]
+        top_drops = drop_history[drop_history.close_pct_change <= current_drop_pct]
         if top_drops.shape[0] / drop_history.shape[0] > self.top_drop_pct:
             return None
         # condition 2: price recovered by 5% more within 5 days
         hit_target_price_count = 0
         hit_max_fallback_count = 0
         for date in top_drops.index.tolist():
-            buy_price = price_history[StockPriceField.AdjustedClose.value].shift(1)[date]
-            target_price = buy_price * (1 + self.target_recover_rate)
-            fallback_price = buy_price * (1 + self.max_allowed_fallback)
+            history_buy_price = price_history[StockPriceField.Close.value][date]
+            history_target_price = history_buy_price * (1 + self.target_recover_rate)
+            history_fallback_price = history_buy_price * (1 + self.max_allowed_fallback)
             hit_target_price = False
-            last_price = buy_price
-            index = price_history.index.get_loc(date) - 1
+            last_price = history_buy_price
+            index = price_history.index.get_loc(date) + 1
             for day in range(1, self.recover_days + 1):
-                if index - day >= 0:
-                    if price_history[StockPriceField.AdjustedClose.value].iloc[index - day] > target_price:
+                if index + day < price_history.shape[0]:
+                    if price_history[StockPriceField.High.value].iloc[index + day] >= history_target_price:
                         hit_target_price = True
                         break
                     else:
-                        last_price = price_history[StockPriceField.AdjustedClose.value].iloc[index - day]
+                        last_price = price_history[StockPriceField.Close.value].iloc[index + day]
             if hit_target_price:
                 hit_target_price_count += 1
-            elif last_price < fallback_price:
+            elif last_price < history_fallback_price:
                 hit_max_fallback_count += 1
         if hit_target_price_count / top_drops.shape[0] > self.recover_success_rate \
                 and hit_max_fallback_count / top_drops.shape[0] < self.allowed_max_fallback_rate:
             self.logger.info('Overreact Strategy: %s [%s] buying %s -> selling %s' % (
-                target_date, symbol, price_history[StockPriceField.AdjustedClose.value][target_date],
-                price_history[StockPriceField.AdjustedClose.value][target_date] * (
-                    1 + self.target_recover_rate)))
+                target_date, symbol, buy_price, sell_price))
             return pandas.Series({'date': target_date, 'symbol': symbol,
-                                  'buying_price': price_history[StockPriceField.AdjustedClose.value][target_date],
-                                  'target_price': price_history[StockPriceField.AdjustedClose.value][target_date] * (
-                                      1 + self.target_recover_rate),
+                                  'buying_price': buy_price,
+                                  'sell_price': sell_price,
                                   'drop_pct': current_drop_pct,
                                   'top_drop_count': top_drops.shape[0],
                                   'drop_count': drop_history.shape[0],
@@ -100,8 +100,9 @@ class OverReactStrategy(Strategy):
                                   'hit_target_ratio': hit_target_price_count / top_drops.shape[0],
                                   'hit_max_fallback': hit_max_fallback_count,
                                   'max_fallback_ratio': hit_max_fallback_count / top_drops.shape[0]
-                                  }, index=['date', 'market', 'symbol', 'buying_price', 'target_price', 'drop_pct',
-                                            'top_drop_count', 'drop_count', 'top_drop_ratio', 'hit_targets',
-                                            'hit_target_ratio', 'hit_max_fallback', 'max_fallback_ratio'])
+                                  },
+                                 index=['date', 'symbol', 'buying_price', 'sell_price', 'drop_pct',
+                                        'top_drop_count', 'drop_count', 'top_drop_ratio', 'hit_targets',
+                                        'hit_target_ratio', 'hit_max_fallback', 'max_fallback_ratio'])
         else:
             return None

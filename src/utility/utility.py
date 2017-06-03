@@ -34,7 +34,6 @@ class StockPriceField(Enum):
     High = 'High'
     Low = 'Low'
     Volume = 'Volume'
-    AdjustedClose = 'AdjustedClose'
 
 
 class Utility:
@@ -63,14 +62,14 @@ class Utility:
             return Utility.__program_config
 
     @staticmethod
-    def get_data_folder(market: Market, folder: DataFolder) -> str:
-        folder_path = os.path.join(Utility.get_config().data_path, market.value, folder.value)
+    def get_data_folder(folder: DataFolder, market: Market = None) -> str:
+        folder_path = os.path.join(Utility.get_config().data_path, '' if market is None else market.value, folder.value)
         os.makedirs(folder_path, exist_ok=True)
         return folder_path
 
     @staticmethod
     def get_stock_listing_xlsx(market: Market, latest: bool = False, day: datetime = datetime.date.today()) -> str:
-        listing_folder = Utility.get_data_folder(market, DataFolder.Stock_Listing)
+        listing_folder = Utility.get_data_folder(market=market, folder=DataFolder.Stock_Listing)
         if latest:
             # return latest listing file from the listing folder
             files = glob.glob(os.path.join(listing_folder, 'listing_*.xlsx'))
@@ -83,6 +82,6 @@ class Utility:
 
     @staticmethod
     def get_stock_price_history_file(market: Market, symbol: str, ipo_year: str, exchange: str = None):
-        history_folder = Utility.get_data_folder(market, DataFolder.Stock_History)
+        history_folder = Utility.get_data_folder(market=market, folder=DataFolder.Stock_History)
         file_name = '%s-%s-%s.csv' % (exchange, ipo_year, symbol)
         return os.path.join(history_folder, file_name)

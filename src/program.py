@@ -30,8 +30,8 @@ def record_buyings(buyings={}, send_mail=True):
     msg['To'] = 'chengxinwu@yahoo.com'
     if count > 0:
         # write results to file
-        file_path = Utility.get_data_folder(Market.US, DataFolder.Output)
-        file_name = os.path.join(file_path, '%s.txt' % datetime.datetime.today())
+        file_path = Utility.get_data_folder(DataFolder.Output)
+        file_name = os.path.join(file_path, '%s.txt' % datetime.date.today())
         with open(file_name, 'w+') as file:
             file.write(text_content)
 
