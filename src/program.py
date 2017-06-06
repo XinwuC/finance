@@ -5,6 +5,8 @@ import logging.config
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from smtplib import SMTP
+from dateutil import parser
+
 
 from stock.china.china_market import ChinaMarket
 from stock.us.us_market import UsaMarket
@@ -65,6 +67,7 @@ def parse_argument():
                         choices=['all', 'listing', 'history', 'strategy'],
                         required=False, default='all', nargs='*')
     parser.add_argument('-s', '--stocks', dest='stocks', help='a stock list to run', required=False, nargs='*')
+    parser.add_argument('-d', '--target_date', dest='target_date', help='target date to test', required=False)
     parser.add_argument('--send_mail', dest='send_mail', help='send mail after run strategies', action='store_true')
     return parser.parse_args()
 
@@ -105,8 +108,11 @@ def run(args):
                 logging.exception('Failed to refresh price history for %s' % market.market, e)
         if 'strategy' in args.mode or 'all' in args.mode:
             try:
+                target_date = None
+                if args.target_date is not None:
+                    target_date = parser.parse(args.target_date)
                 start = datetime.datetime.now()
-                buyings[market.market] = market.run_strategies(stock_list=args.stocks)
+                buyings[market.market] = market.run_strategies(stock_list=args.stocks, target_date=target_date)
                 end = datetime.datetime.now()
                 logging.info('Timing: run strategies for market %s in %s second.', market.market,
                              (end - start) // datetime.timedelta(seconds=1))

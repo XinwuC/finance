@@ -13,5 +13,5 @@ class StockMarket:
     def refresh_stocks(self, stock_list: [] = []):
         raise NotImplemented("Not Implemented in %", type(self).__name__)
 
-    def run_strategies(self, stock_list: [] = []):
-        return self.strategy_executor.run(stock_list)
+    def run_strategies(self, stock_list: [] = [], target_date: datetime.date = None):
+        return self.strategy_executor.run(stock_list, target_date)

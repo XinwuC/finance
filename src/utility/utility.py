@@ -49,6 +49,11 @@ class Utility:
         return Utility.__logging_config
 
     @staticmethod
+    def reset_config(filename='configs/program_config.json'):
+        Utility.__program_config = None
+        return Utility.get_config(filename=filename)
+
+    @staticmethod
     def get_config(market: Market = None, filename='configs/program_config.json'):
         if Utility.__program_config is None:
             with open(filename) as config:
@@ -85,3 +90,5 @@ class Utility:
         history_folder = Utility.get_data_folder(market=market, folder=DataFolder.Stock_History)
         file_name = '%s-%s-%s.csv' % (exchange, ipo_year, symbol)
         return os.path.join(history_folder, file_name)
+
+

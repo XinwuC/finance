@@ -37,7 +37,7 @@ class StrategyExecutor:
             name_pattern = re.compile(r'\w+-\w+-\w+.csv')
             name_extractor = re.compile(r'\w+')
             result = None  # pandas.DataFrame()
-            for entry in os.scandir(self.history_folder):
+            for entry in it:
                 if entry.is_file() and name_pattern.match(entry.name):
                     (exchange, ipo, symbol, dummy) = name_extractor.findall(entry.name)
                     if stock_list and symbol not in stock_list:

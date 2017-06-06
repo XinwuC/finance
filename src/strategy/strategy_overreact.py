@@ -53,6 +53,10 @@ class OverReactStrategy(Strategy):
         price_history['close_pct_change'] = price_history[StockPriceField.Close.value].pct_change()
         # slicing price_history to keep only up to target_date data
         price_history = price_history[:target_date]
+        if price_history.empty:
+            return None
+        if price_history.index[-1].date() != target_date:
+            target_date = price_history.index[-1]
         current_drop_pct = price_history.close_pct_change[-1]
         # check if multiple records for the target date, which usually happen for partial day refresh
         if numpy.isnan(current_drop_pct) or current_drop_pct >= 0:

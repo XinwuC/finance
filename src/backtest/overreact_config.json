@@ -21,7 +21,7 @@
         "recover_days": 5,
         "recover_success_rate": 0.7,
         "max_allowed_fallback": -0.05,
-        "max_fallback_rate": 0.01
+        "max_fallback_rate": 0
       }
     }
   },
