@@ -89,8 +89,8 @@ class OverReactStrategy(Strategy):
                 hit_target_price_count += 1
             elif last_price < history_fallback_price:
                 hit_max_fallback_count += 1
-        if hit_target_price_count / top_drops.shape[0] > self.recover_success_rate \
-                and hit_max_fallback_count / top_drops.shape[0] < self.allowed_max_fallback_rate:
+        if hit_target_price_count / top_drops.shape[0] >= self.recover_success_rate \
+                and hit_max_fallback_count / top_drops.shape[0] <= self.allowed_max_fallback_rate:
             self.logger.info('Overreact Strategy: %s [%s] buying %s -> selling %s' % (
                 target_date, symbol, buy_price, sell_price))
             return pandas.Series({'date': target_date, 'symbol': symbol,

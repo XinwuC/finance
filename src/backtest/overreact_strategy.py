@@ -13,6 +13,7 @@ def initialize(context):
     # init params
     Utility.reset_config(filename='src/backtest/overreact_config.json')
 
+    set_commission(zipline.finance.commission.PerTrade(cost=0))
     context.market = UsaMarket()
     context.buying_power = context.portfolio.cash / 10
     context.buyings = {}
@@ -62,7 +63,7 @@ def handle_data(context, data):
                 transaction.dt.date(), transaction.asset, transaction.amount, transaction.price,))
 
     # check if it is in the ramp down stage
-    if context.trading_calendar.session_distance(context.datetime, context.trading_client.sim_params.end_sessio) < 7:
+    if context.trading_calendar.session_distance(context.datetime, context.trading_client.sim_params.end_session) < 7:
         return
     # check if we still have cash to buy
     cash = context.portfolio.cash
