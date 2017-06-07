@@ -19,9 +19,9 @@
         "top_drop_pct": 0.05,
         "target_recover_rate": 0.05,
         "recover_days": 5,
-        "recover_success_rate": 0.7,
+        "recover_success_rate": 0.8,
         "max_allowed_fallback": -0.05,
-        "max_fallback_rate": 0.01
+        "max_fallback_rate": 0
       }
     }
   },

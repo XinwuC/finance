@@ -54,7 +54,8 @@ def handle_data(context, data):
             cleanup_orders(position.asset)
             order(position.asset, -position.amount)
             # print('Sell order %s on %s at market price' % (position.amount, position.asset))
-        print('\t- %s:\t%s @ %.2f' % (position.asset, position.amount, position.cost_basis))
+        print('\t- %s:\t%s @ %.2f (%.2f)' % (
+            position.asset, position.amount, position.cost_basis, position.last_sale_price))
         stock_list.remove(position.asset.symbol)
     # print order status
     for transaction_list in context.perf_tracker.todays_performance.processed_transactions.values():
@@ -95,8 +96,8 @@ def cleanup_orders(asset):
 
 
 if __name__ == '__main__':
-    perf = zipline.run_algorithm(start=datetime.datetime(2016, 1, 1).replace(tzinfo=pytz.UTC),
-                                 end=datetime.datetime(2016, 4, 1).replace(tzinfo=pytz.UTC),
+    perf = zipline.run_algorithm(start=datetime.datetime(2016, 4, 1).replace(tzinfo=pytz.UTC),
+                                 end=datetime.datetime(2016, 7, 1).replace(tzinfo=pytz.UTC),
                                  initialize=initialize,
                                  handle_data=handle_data,
                                  capital_base=10000,
