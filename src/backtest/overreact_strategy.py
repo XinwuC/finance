@@ -14,7 +14,7 @@ def initialize(context):
     # init params
     Utility.reset_config(filename='src/backtest/overreact_config.json')
 
-    context.indicator = pandas.read_csv('src/backtest/^GSPC.csv', index_col=0, parse_dates=True)
+    context.indicator = pandas.read_csv('src/backtest/^GSPC.csv', index_col=0, parse_dates=True, na_values='null')
     context.indicator.Close = context.indicator['Adj Close']
     del context.indicator['Adj Close']
     context.indicator = context.indicator[
@@ -127,4 +127,4 @@ if __name__ == '__main__':
                                  capital_base=10000,
                                  data_frequency='daily',
                                  bundle='quantopian-quandl')
-    print(perf)
+    perf.to_csv('simulation.csv')
