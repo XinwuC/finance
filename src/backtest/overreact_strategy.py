@@ -1,5 +1,6 @@
 import re
 
+import pandas
 import pytz
 import zipline
 from zipline.api import *
@@ -13,8 +14,18 @@ def initialize(context):
     # init params
     Utility.reset_config(filename='src/backtest/overreact_config.json')
 
+    context.indicator = pandas.read_csv('src/backtest/^GSPC.csv', index_col=0, parse_dates=True)
+    context.indicator.Close = context.indicator['Adj Close']
+    del context.indicator['Adj Close']
+    context.indicator = context.indicator[
+                        context.sim_params.start_session - datetime.timedelta(days=30):
+                        context.sim_params.end_session]
+    context.indicator['sma5'] = context.indicator.Close.rolling(window=5).mean()
+    context.indicator['sma10'] = context.indicator.Close.rolling(window=10).mean()
+    # context.indicator['sma30'] = context.indicator.rolling(window=30).mean()
     set_commission(zipline.finance.commission.PerTrade(cost=0))
     context.market = UsaMarket()
+    context.long_position = False
     context.buying_power = context.portfolio.cash / 10
     context.buyings = {}
     context.assets = {}
@@ -30,12 +41,22 @@ def initialize(context):
                     context.assets[symbolName] = asset
                 except:
                     pass
+
+
+def before_trading_start(context, data):
+    sma5_yesterday = context.indicator.sma5.shift(1)[context.datetime.date()]
+    sma5_today = context.indicator.sma5[context.datetime.date()]
+    sma10_today = context.indicator.sma10[context.datetime.date()]
+    context.long_position = sma5_today > sma5_yesterday and sma5_today > sma10_today
+    print('Backtesting for date %s: Portfolio: $%.2f, Cash: $%.2f' % (
+        context.datetime.date(), context.portfolio.portfolio_value, context.portfolio.cash))
+    print('\tLong Position: {0} (SMA5 Slop: {1:.2%}, SMA5/SMA10: {2:.2%})'.format(context.long_position,
+                                                                                  sma5_today / sma5_yesterday - 1,
+                                                                                  sma5_today / sma10_today - 1))
     pass
 
 
 def handle_data(context, data):
-    print('Backtesting for date %s: Portfolio: $%.2f, Cash: $%.2f' % (
-        context.datetime.date(), context.portfolio.portfolio_value, context.portfolio.cash))
     stock_list = list(context.assets.keys())
     # cancel all unfilled buy orders
     for open_orders in get_open_orders().values():
@@ -47,22 +68,24 @@ def handle_data(context, data):
         if not context.buyings[position.asset][2]:
             # place sell order
             cleanup_orders(position.asset)
-            order(position.asset, -position.amount, style=LimitOrder(context.buyings[position.asset][1]))
+            order(position.asset, -position.amount, style=LimitOrder(position.cost_basis * 1.05))
             context.buyings[position.asset][2] = True
             # print('Sell order %s on %s at %s' % (position.amount, position.asset, context.buyings[position.asset][1]))
         if context.trading_calendar.session_distance(context.buyings[position.asset][0], context.datetime) > 6:
             cleanup_orders(position.asset)
             order(position.asset, -position.amount)
             # print('Sell order %s on %s at market price' % (position.amount, position.asset))
-        print('\t- %s:\t%s @ %.2f (%.2f)' % (
+        print('\t\t- %s:\t%s @ %.2f (%.2f)' % (
             position.asset, position.amount, position.cost_basis, position.last_sale_price))
         stock_list.remove(position.asset.symbol)
     # print order status
     for transaction_list in context.perf_tracker.todays_performance.processed_transactions.values():
         for transaction in transaction_list:
-            print('\t[%s] Executed %s: \t%s @ $%.2f' % (
+            print('\t\t\t[%s] Executed %s: \t%s @ $%.2f' % (
                 transaction.dt.date(), transaction.asset, transaction.amount, transaction.price,))
-
+    # check indicator position
+    if not context.long_position:
+        return
     # check if it is in the ramp down stage
     if context.trading_calendar.session_distance(context.datetime, context.trading_client.sim_params.end_session) < 7:
         return
@@ -96,10 +119,11 @@ def cleanup_orders(asset):
 
 
 if __name__ == '__main__':
-    perf = zipline.run_algorithm(start=datetime.datetime(2016, 4, 1).replace(tzinfo=pytz.UTC),
-                                 end=datetime.datetime(2016, 7, 1).replace(tzinfo=pytz.UTC),
+    perf = zipline.run_algorithm(start=datetime.datetime(2015, 7, 1).replace(tzinfo=pytz.UTC),
+                                 end=datetime.datetime(2016, 9, 1).replace(tzinfo=pytz.UTC),
                                  initialize=initialize,
                                  handle_data=handle_data,
+                                 before_trading_start=before_trading_start,
                                  capital_base=10000,
                                  data_frequency='daily',
                                  bundle='quantopian-quandl')
