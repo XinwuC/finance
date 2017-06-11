@@ -91,6 +91,12 @@ class OverReactStrategy(Strategy):
                 hit_max_fallback_count += 1
         if hit_target_price_count / top_drops.shape[0] >= self.recover_success_rate \
                 and hit_max_fallback_count / top_drops.shape[0] <= self.allowed_max_fallback_rate:
+            # check whether current Close price is the lowest in past 3 months
+            recent_lowest_prices = price_history[StockPriceField.Close.value][
+                                   target_date - datetime.timedelta(days=90):target_date].min()
+            if buy_price > recent_lowest_prices:
+                return None
+            # found buying position
             self.logger.info('Overreact Strategy: %s [%s] buying %s -> selling %s' % (
                 target_date, symbol, buy_price, sell_price))
             return pandas.Series({'date': target_date, 'symbol': symbol,
