@@ -79,7 +79,7 @@ def handle_data(context, data):
         if context.trading_calendar.session_distance(context.orders[position.asset][-1].dt, context.datetime) > 300:
             cleanup_orders(position.asset)
             order(position.asset, -position.amount)
-        print('\t\t- %s:\t%s @ %.2f (%.2f, %.2f)' % (
+        print('\t\t- %s:\t%s @ $%.2f ($%.2f, $%.2f)' % (
             position.asset, position.amount, position.cost_basis, position.last_sale_price, position.cost_basis * 1.05))
         stock_list.remove(position.asset.symbol)
 

@@ -16,6 +16,7 @@ class DataFolder(Enum):
     Stock = 'stocks'
     Stock_History = os.path.join(Stock, 'history')
     Stock_Listing = os.path.join(Stock, 'listing')
+    Stock_Training = os.path.join(Stock, 'training')
     Output = 'output'
 
 
@@ -28,12 +29,12 @@ class ListingField(Enum):
 
 
 class StockPriceField(Enum):
-    Date = 'Date'
-    Open = 'Open'
-    Close = 'Close'
-    High = 'High'
-    Low = 'Low'
-    Volume = 'Volume'
+    Date = 'date'
+    Open = 'open'
+    Close = 'close'
+    High = 'high'
+    Low = 'low'
+    Volume = 'volume'
 
 
 class Utility:
