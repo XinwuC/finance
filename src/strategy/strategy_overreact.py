@@ -30,7 +30,7 @@ class OverReactStrategy(Strategy):
             else allowed_max_fallback_rate
         self.logger = logging.getLogger(__name__)
 
-    def analysis(self, symbol: str, price_history: pandas.DataFrame, target_date: datetime.date = None) -> dict:
+    def analysis(self, price_history: pandas.DataFrame, target_date: datetime.date = None) -> dict:
         """
         Analysis and trigger if the symbol price has seen over reaction drops for the latest day.
     
@@ -41,22 +41,12 @@ class OverReactStrategy(Strategy):
         :param price_history: a 2-D data frame that has price history  
         :return: True: buying candidate; False: Not buying candidate
         """
-        if symbol is None:
-            raise Exception('Invalid Argument: symbol %s' % symbol)
+        price_history, target_date = self.calibrate(price_history, target_date)
         if price_history is None or price_history.empty:
             return None
-        if target_date is None:
-            target_date = price_history.index.max()
 
-        # condition 0: price dropped on target day
-        price_history.sort_index(inplace=True, ascending=True)
+        symbol = price_history[StockPriceField.Symbol.value][0]
         price_history['close_pct_change'] = price_history[StockPriceField.Close.value].pct_change()
-        # slicing price_history to keep only up to target_date data
-        price_history = price_history[:target_date]
-        if price_history.empty:
-            return None
-        if price_history.index[-1].date() != target_date:
-            target_date = price_history.index[-1]
         current_drop_pct = price_history.close_pct_change[-1]
         # check if multiple records for the target date, which usually happen for partial day refresh
         if numpy.isnan(current_drop_pct) or current_drop_pct >= 0:

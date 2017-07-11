@@ -29,7 +29,7 @@ class StrategyExecutor:
             if result is not None and not result.empty:
                 buying_options[strategy.name] = result
                 with pandas.option_context('display.max_rows', 10, 'expand_frame_repr', False):
-                    self.logger.debug('%s analysis results:\n%s' % (strategy.name, result))
+                    self.logger.info('%s analysis results:\n%s' % (strategy.name, result))
         return buying_options
 
     def _run_strategy(self, strategy, stock_list: [] = [], target_date: datetime.date = None) -> pandas.DataFrame:
@@ -44,7 +44,7 @@ class StrategyExecutor:
                         continue  # skip symbol that is not in target stock list.
                     prices = pandas.read_csv(entry.path, index_col=0, parse_dates=True)
                     self.logger.info('Running strategy %s for [%s] %s' % (strategy.name, exchange, symbol))
-                    buying_symbol = strategy.analysis(symbol, prices, target_date)
+                    buying_symbol = strategy.analysis(prices, target_date)
                     if buying_symbol is not None:
                         if result is None:
                             result = pandas.DataFrame(buying_symbol).T

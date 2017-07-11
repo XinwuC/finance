@@ -6,6 +6,7 @@ from collections import namedtuple
 from enum import Enum
 
 
+
 # public enums
 class Market(Enum):
     US = 'us'
@@ -16,6 +17,7 @@ class DataFolder(Enum):
     Stock = 'stocks'
     Stock_History = os.path.join(Stock, 'history')
     Stock_Listing = os.path.join(Stock, 'listing')
+    Stock_Model = os.path.join(Stock, 'models')
     Stock_Training = os.path.join(Stock, 'training')
     Output = 'output'
 
@@ -29,6 +31,7 @@ class ListingField(Enum):
 
 
 class StockPriceField(Enum):
+    Symbol = 'symbol'
     Date = 'date'
     Open = 'open'
     Close = 'close'
@@ -91,5 +94,6 @@ class Utility:
         history_folder = Utility.get_data_folder(market=market, folder=DataFolder.Stock_History)
         file_name = '%s-%s-%s.csv' % (exchange, ipo_year, symbol)
         return os.path.join(history_folder, file_name)
+
 
 

@@ -77,16 +77,15 @@ class UsaMarket(StockMarket):
             with pandas.ExcelFile(Utility.get_stock_listing_xlsx(Market.US, latest=True)) as listings:
                 for exchange in listings.sheet_names:
                     self.logger.info('Fetching stock history prices from exchange %s.', exchange.upper())
-                    stocks = pandas.read_excel(listings, exchange, parse_dates=[ListingField.IPO.value],
-                                               date_parser=lambda x: pandas.to_datetime(
-                                                   str(x)) if x != 'n/a' else pandas.to_datetime(
-                                                   Utility.get_config().history_start_date))
+                    stocks = pandas.read_excel(listings, exchange)
                     for stock in stocks.itertuples():
                         if stock_list and stock.Symbol not in stock_list:
                             continue  # skip stock that is not in stock_list
                         if not symbol_pattern.match(stock.Symbol):
                             continue  # skip invalid symbols
-                        futures.append(executor.submit(self.refresh_stock, exchange, stock.Symbol, stock.IPO))
+                        start_date = pandas.to_datetime(str(stock.IPO)) if stock.IPO != 'n/a' else pandas.to_datetime(
+                            Utility.get_config().history_start_date)
+                        futures.append(executor.submit(self.refresh_stock, exchange, stock.Symbol, start_date))
                         total_symbols += 1
 
         for future in futures:
@@ -109,9 +108,10 @@ class UsaMarket(StockMarket):
                                            'Low': StockPriceField.Low.value,
                                            'Close': StockPriceField.Close.value,
                                            'Volume': StockPriceField.Volume.value}, index=str, inplace=True)
+            history_prices.insert(0, StockPriceField.Symbol.value, symbol)
             history_prices.to_csv(Utility.get_stock_price_history_file(Market.US, symbol, start_date.year, exchange))
-            self.logger.info('Updated price history for [%s] %s\t(%s - %s)', exchange.upper(), symbol, start_date.date(),
-                             end_date)
+            self.logger.info('Updated price history for [%s] %s\t(%s - %s)', exchange.upper(), symbol,
+                             start_date.date(), end_date)
 
         return history_prices, history_prices is None, history_prices is None
 
