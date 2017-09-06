@@ -13,8 +13,7 @@
     "stock_list_provider": "http://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=%s&render=download",
     "strategy": {
       "list": [
-        "overreact",
-        "lr"
+        "overreact"
       ],
       "overreact": {
         "top_drop_pct": 0.05,

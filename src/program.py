@@ -5,8 +5,9 @@ import logging.config
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from smtplib import SMTP
-from dateutil import parser
 
+import pandas
+from dateutil import parser
 
 from stock.china.china_market import ChinaMarket
 from stock.us.us_market import UsaMarket
@@ -24,7 +25,13 @@ def record_buyings(buyings={}, send_mail=True):
             for name in buying_options:
                 count += 1
                 text_content += '%s\n\n%s\n\n' % (name, buying_options[name].to_string())
-                html_content += '<h3>%s</h3><p>%s</p>' % (name, buying_options[name].to_html())
+                html_content += '<h3>%s</h3><p>%s</p>' % (
+                    name,
+                    buying_options[name].to_html(escape=False,
+                                                 formatters={
+                                                     'symbol': lambda x:
+                                                     '<a href="https://finance.yahoo.com/quote/{0}">{0}</a>'.format(x)}
+                                                 ))
     html_content += '</body></html>'
 
     msg = MIMEMultipart('alternative')
@@ -132,6 +139,7 @@ if __name__ == '__main__':
     logging.config.dictConfig(Utility.get_logging_config())
 
     try:
-        run(parse_argument())
+        with pandas.option_context('display.max_colwidth', -1):
+            run(parse_argument())
     except Exception as e:
         logging.exception(e)

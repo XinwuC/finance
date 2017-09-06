@@ -8,6 +8,7 @@ Source provider is http://www.nasdaq.com/screening/company-list.aspx
 import concurrent.futures
 import logging
 import re
+import shutil
 
 import pandas
 import pandas_datareader.data as web
@@ -73,6 +74,9 @@ class UsaMarket(StockMarket):
         google_errors = 0
         symbol_pattern = re.compile(r'^(\w|\.)+$')
         futures = []
+        # purge stock history folder if refresh all (ie. stock_list is empty)
+        if not stock_list:
+            shutil.rmtree(Utility.get_data_folder(DataFolder.Stock_History, Market.US), ignore_errors=True)
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.concurrent) as executor:
             with pandas.ExcelFile(Utility.get_stock_listing_xlsx(Market.US, latest=True)) as listings:
                 for exchange in listings.sheet_names:

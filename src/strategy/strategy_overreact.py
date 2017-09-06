@@ -79,30 +79,35 @@ class OverReactStrategy(Strategy):
                 hit_target_price_count += 1
             elif last_price < history_fallback_price:
                 hit_max_fallback_count += 1
-        if hit_target_price_count / top_drops.shape[0] >= self.recover_success_rate \
-                and hit_max_fallback_count / top_drops.shape[0] <= self.allowed_max_fallback_rate:
-            # check whether current Close price is the lowest in past 3 months
-            recent_lowest_prices = price_history[StockPriceField.Close.value][
-                                   target_date - datetime.timedelta(days=90):target_date].min()
-            if buy_price > recent_lowest_prices:
-                return None
-            # found buying position
-            self.logger.info('Overreact Strategy: %s [%s] buying %s -> selling %s' % (
-                target_date, symbol, buy_price, sell_price))
-            return pandas.Series({'date': target_date, 'symbol': symbol,
-                                  'buying_price': buy_price,
-                                  'sell_price': sell_price,
-                                  'drop_pct': current_drop_pct,
-                                  'top_drop_count': top_drops.shape[0],
-                                  'drop_count': drop_history.shape[0],
-                                  'top_drop_ratio': top_drops.shape[0] / drop_history.shape[0],
-                                  'hit_targets': hit_target_price_count,
-                                  'hit_target_ratio': hit_target_price_count / top_drops.shape[0],
-                                  'hit_max_fallback': hit_max_fallback_count,
-                                  'max_fallback_ratio': hit_max_fallback_count / top_drops.shape[0]
-                                  },
-                                 index=['date', 'symbol', 'buying_price', 'sell_price', 'drop_pct',
-                                        'top_drop_count', 'drop_count', 'top_drop_ratio', 'hit_targets',
-                                        'hit_target_ratio', 'hit_max_fallback', 'max_fallback_ratio'])
-        else:
+        if hit_target_price_count / top_drops.shape[0] < self.recover_success_rate \
+                and hit_max_fallback_count / top_drops.shape[0] > self.allowed_max_fallback_rate:
             return None
+
+        # condition 3: check whether current Close price is the lowest in past 6 months
+        recent_lowest_prices = price_history[StockPriceField.Close.value][
+                                   target_date - datetime.timedelta(days=180):target_date].min()
+        if buy_price > recent_lowest_prices:
+            return None
+        # condition 4: volume has been 10x of average
+        mean_volume = price_history[StockPriceField.Volume.value][-300:-1].mean()
+        if price_history[StockPriceField.Volume.value][target_date] < 5 * mean_volume:
+            return None
+        # result: found buying position
+        self.logger.info('Overreact Strategy: %s [%s] buying %s -> selling %s' % (
+            target_date, symbol, buy_price, sell_price))
+        return pandas.Series({'date': target_date, 'symbol': symbol,
+                              'buying_price': buy_price,
+                              'sell_price': sell_price,
+                              'drop_pct': current_drop_pct,
+                              'top_drop_count': top_drops.shape[0],
+                              'drop_count': drop_history.shape[0],
+                              'top_drop_ratio': top_drops.shape[0] / drop_history.shape[0],
+                              'hit_targets': hit_target_price_count,
+                              'hit_target_ratio': hit_target_price_count / top_drops.shape[0],
+                              'hit_max_fallback': hit_max_fallback_count,
+                              'max_fallback_ratio': hit_max_fallback_count / top_drops.shape[0]
+                              },
+                             index=['date', 'symbol', 'buying_price', 'sell_price', 'drop_pct',
+                                    'top_drop_count', 'drop_count', 'top_drop_ratio', 'hit_targets',
+                                    'hit_target_ratio', 'hit_max_fallback', 'max_fallback_ratio'])
+
