@@ -7,6 +7,6 @@ RUN cat requirements.txt | xargs -L 1 pip install --no-cache-dir -U
 
 COPY . .
 
-CMD ["python", "./src/program.py"]
+ENTRYPOINT ["python", "./src/program.py"]
 
 
