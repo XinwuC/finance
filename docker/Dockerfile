@@ -3,7 +3,8 @@ FROM python:3.6
 WORKDIR /usr/src/app
 
 COPY requirements.txt ./
-RUN cat requirements.txt | xargs -L 1 pip install --no-cache-dir -U
+RUN pip install --no-cache-dir -U -r requirements.txt
+RUN pip install --no-cache-dir -U tushare 
 
 COPY . .
 
