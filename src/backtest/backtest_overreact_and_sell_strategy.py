@@ -4,10 +4,11 @@ import pandas
 import pytz
 import zipline
 from zipline.api import *
-from zipline.finance.execution import LimitOrder
+from zipline.finance.execution import LimitOrder, StopLimitOrder
 
 from stock.us.us_market import UsaMarket
 from utility.utility import *
+from strategy.sell.sell_strategy_lock_profit import SimpleProfitLockSellStrategy
 
 
 def initialize(context):
@@ -28,6 +29,7 @@ def initialize(context):
     context.buying_power = context.portfolio.cash / 10
     context.screen_assets = {}
     context.orders = {}
+    context.sell_strategy_lock_profit = SimpleProfitLockSellStrategy()
     # check valid symbols
     with os.scandir(Utility.get_data_folder(market=Market.US, folder=DataFolder.Stock_History)) as it:
         name_pattern = re.compile(r'\w+-\w+-\w+.csv')
@@ -70,19 +72,14 @@ def handle_data(context, data):
                 transaction.dt.date(), transaction.asset, transaction.amount, transaction.price,))
     # check and short positions
     for position in context.portfolio.positions.values():
-        if context.trading_calendar.session_distance(context.orders[position.asset][-1].dt, context.datetime) > 7:
-            cleanup_orders(position.asset)
-            order(position.asset, -position.amount, position.cost_basis)
-        if context.trading_calendar.session_distance(context.orders[position.asset][-1].dt, context.datetime) > 90:
-            cleanup_orders(position.asset)
-            order(position.asset, -position.amount, position.cost_basis * 0.95)
-        if context.trading_calendar.session_distance(context.orders[position.asset][-1].dt, context.datetime) > 300:
-            cleanup_orders(position.asset)
-            order(position.asset, -position.amount)
+        place_sell_orders(context, data, position)
+        stock_list.remove(position.asset.symbol)
         print('\t\t- %s:\t%s @ $%.2f ($%.2f, $%.2f)' % (
             position.asset, position.amount, position.cost_basis, position.last_sale_price, position.cost_basis * 1.05))
-        stock_list.remove(position.asset.symbol)
 
+    # check if hold position in all stocks
+    if len(stock_list) == 0:
+        return
     # check indicator position
     if not context.long_position:
         return
@@ -126,10 +123,34 @@ def analysis(context, perf=None):
 
 def cleanup_orders(asset):
     # cancel all open orders first
-    for open_orders in get_open_orders().values():
-        for open_order in open_orders:
-            if open_order.sid == asset:
-                cancel_order(open_order)
+    for open_order in get_open_orders(asset):
+        cancel_order(open_order)
+
+
+def place_sell_orders(context, data, position):
+    if position.cost_basis < position.last_sale_price:
+        # place profit lock sell order when position is profitable
+        price_history = data.history(position.asset, ['high', 'low', 'close'], 30, '1d')
+        price_history.index.name = 'date'
+        sell_price = context.sell_strategy_lock_profit.get_sell_price(price_history, context.datetime.date())
+        open_orders = get_open_orders(position.asset)
+        if len(open_orders) > 0:
+            if open_orders[0].limit < sell_price:
+                cleanup_orders(position.asset)
+            else:
+                return  # previous sell price is higher, ignore this asset this time
+        elif sell_price <= position.cost_basis:
+            return  # sell price is lower than cost basis, ignore this asset and wait for price be profitable
+        order_percent(position.asset, -1, style=StopLimitOrder(limit_price=sell_price, stop_price=sell_price))
+    elif context.trading_calendar.session_distance(context.orders[position.asset][-1].dt, context.datetime) > 7:
+        cleanup_orders(position.asset)
+        order(position.asset, -position.amount, position.cost_basis)
+    elif context.trading_calendar.session_distance(context.orders[position.asset][-1].dt, context.datetime) > 90:
+        cleanup_orders(position.asset)
+        order(position.asset, -position.amount, position.cost_basis * 0.95)
+    elif context.trading_calendar.session_distance(context.orders[position.asset][-1].dt, context.datetime) > 300:
+        cleanup_orders(position.asset)
+        order(position.asset, -position.amount)
 
 
 if __name__ == '__main__':

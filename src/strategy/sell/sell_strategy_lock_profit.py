@@ -5,8 +5,8 @@ from zipline.finance.execution import ExecutionStyle, StopLimitOrder
 
 
 class SimpleProfitLockSellStrategy:
-    def __init__(self):
-        self.minimal_profit = 0.05
+    def __init__(self, mini_profit: float = 0.05):
+        self.minimal_profit = mini_profit
         pass
 
     def get_sell_price(self, price_history: pandas.DataFrame,
@@ -15,7 +15,7 @@ class SimpleProfitLockSellStrategy:
         price_history.loc[:, 'daily_range_pct'] = (price_history[StockPriceField.High.value] - price_history[
             StockPriceField.Low.value]) / price_history[StockPriceField.Low.value]
         sell_price = price_history[StockPriceField.Low.value][target_date] * (
-        1 - price_history['daily_range_pct'].mean())
+            1 - price_history['daily_range_pct'].mean())
         return sell_price
 
     def get_sell_order(self, profit_lock_price: float, cost_basis: float,

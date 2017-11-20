@@ -42,11 +42,13 @@ class OverReactStrategy(Strategy):
         :return: True: buying candidate; False: Not buying candidate
         """
         price_history, target_date = self.calibrate(price_history, target_date)
-        if price_history is None or price_history.empty:
+        if price_history is None or price_history.shape[0] < 300:
+            return None
+        if price_history[StockPriceField.Close.value][-1] >= price_history[StockPriceField.Close.value][-2]:
             return None
 
         symbol = price_history[StockPriceField.Symbol.value][0]
-        price_history['close_pct_change'] = price_history[StockPriceField.Close.value].pct_change()
+        price_history.loc[:, 'close_pct_change'] = price_history[StockPriceField.Close.value].pct_change()
         current_drop_pct = price_history.close_pct_change[-1]
         # check if multiple records for the target date, which usually happen for partial day refresh
         if numpy.isnan(current_drop_pct) or current_drop_pct >= 0:
@@ -85,7 +87,7 @@ class OverReactStrategy(Strategy):
 
         # condition 3: check whether current Close price is the lowest in past 6 months
         recent_lowest_prices = price_history[StockPriceField.Close.value][
-                                   target_date - datetime.timedelta(days=180):target_date].min()
+                               target_date - datetime.timedelta(days=180):target_date].min()
         if buy_price > recent_lowest_prices:
             return None
         # condition 4: volume has been 10x of average
@@ -110,4 +112,3 @@ class OverReactStrategy(Strategy):
                              index=['date', 'symbol', 'buying_price', 'sell_price', 'drop_pct',
                                     'top_drop_count', 'drop_count', 'top_drop_ratio', 'hit_targets',
                                     'hit_target_ratio', 'hit_max_fallback', 'max_fallback_ratio'])
-
