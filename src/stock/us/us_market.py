@@ -111,7 +111,7 @@ class UsaMarket(StockMarket):
                                            'High': StockPriceField.High.value,
                                            'Low': StockPriceField.Low.value,
                                            'Close': StockPriceField.Close.value,
-                                           'Volume': StockPriceField.Volume.value}, index=str, inplace=True)
+                                           'Volume': StockPriceField.Volume.value}, inplace=True)
             history_prices.insert(0, StockPriceField.Symbol.value, symbol)
             history_prices.to_csv(Utility.get_stock_price_history_file(Market.US, symbol, start_date.year, exchange))
             self.logger.info('Updated price history for [%s] %s\t(%s - %s)', exchange.upper(), symbol,

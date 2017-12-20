@@ -2,6 +2,9 @@
   "history_start_date": "1985-01-01",
   "data_path": "data",
   "data_retry": 3,
+  "mail_account": "xwcheng@live.com",
+  "mail_to": "chengxinwu@yahoo.com",
+  "robinhood_account": "xinwucheng@gmail.com",
   "us": {
     "exchanges": [
       "nasdaq",
@@ -11,6 +14,7 @@
     "concurrent": 8,
     "symbols_file": "symbols",
     "stock_list_provider": "http://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=%s&render=download",
+    "symbol_page": "https://finance.yahoo.com/quote/",
     "strategy": {
       "list": [
         "overreact"

@@ -5,6 +5,7 @@ import os
 from collections import namedtuple
 from enum import Enum
 
+from cryptography.fernet import Fernet
 
 
 # public enums
@@ -44,6 +45,8 @@ class Utility:
     # private static objects
     __logging_config = None
     __program_config = None
+    __encrypt_key = b'wCh3acjYDuMj66s_ZSCFQYXBQcYpRaa2dt0Dd7L1q1g='
+    __cipher_suite = Fernet(__encrypt_key)
 
     @staticmethod
     def get_logging_config(filename='configs/logging_config.json'):
@@ -95,5 +98,12 @@ class Utility:
         file_name = '%s-%s-%s.csv' % (exchange, ipo_year, symbol)
         return os.path.join(history_folder, file_name)
 
+    @staticmethod
+    def decrypt(cipher_text: str) -> str:
+        return Utility.__cipher_suite.decrypt(cipher_text.encode('utf-8'))
+
+    @staticmethod
+    def encrypt(text: str) -> str:
+        return Utility.__cipher_suite.encrypt(text)
 
 
