@@ -100,7 +100,10 @@ class Utility:
 
     @staticmethod
     def decrypt(cipher_text: str) -> str:
-        return Utility.__cipher_suite.decrypt(cipher_text.encode('utf-8'))
+        if cipher_text:
+            return Utility.__cipher_suite.decrypt(cipher_text.encode('utf-8'))
+        else:
+            return ''
 
     @staticmethod
     def encrypt(text: str) -> str:

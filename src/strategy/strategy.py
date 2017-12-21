@@ -43,9 +43,7 @@ class Strategy:
         if price_history is None or price_history.empty:
             return None, None
         # remove duplicate index
-        price_history.reset_index(inplace=True)
-        price_history.drop_duplicates(subset=StockPriceField.Date.value, inplace=True)
-        price_history.set_index(StockPriceField.Date.value, inplace=True)
+        price_history = price_history[~price_history.index.duplicated(keep='first')]
         # calibrate target date
         if target_date is None:
             target_date = price_history.index.max().date()
