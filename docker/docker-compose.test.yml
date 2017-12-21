@@ -1,3 +1,10 @@
-sut:
-  build: .
-  command: export PYTHONPATH=./src:$PYTHONPATH && python -m unittest discover -s tests -t .
+version: '3'
+
+services:
+  sut:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: python -m unittest discover -s tests -t .
+    environment:
+      - PYTHONPATH=./src
