@@ -7,7 +7,7 @@ from utility.utility import *
 
 class SimpleProfitLockSellStrategyTestCase(unittest.TestCase):
     def setUp(self):
-        self.test_data = pandas.read_csv('../../resources/us_stocks/DXCM.csv', index_col=0, parse_dates=True)
+        self.test_data = pandas.read_csv('tests/resources/us_stocks/DXCM.csv', index_col=0, parse_dates=True)
 
     def test_get_sell_price(self):
         target = SimpleProfitLockSellStrategy()
