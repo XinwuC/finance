@@ -4,7 +4,7 @@ WORKDIR /usr/src/app
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -U -r requirements.txt
-RUN pip install --no-cache-dir -U tushare 
+RUN pip install --no-cache-dir tushare
 
 COPY . .
 
