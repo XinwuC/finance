@@ -5,6 +5,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    command: python -m unittest discover -s tests -t .
+    command: bash -c "coverage run --source src -m unittest discover -s tests/ -t . && coverage report"
     environment:
       - PYTHONPATH=./src
+
