@@ -8,6 +8,6 @@ RUN pip install --no-cache-dir tushare
 
 COPY . .
 
-CMD ["python", "./src/program.py"]
+ENTRYPOINT ["python", "./src/program.py"]
 
 

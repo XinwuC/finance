@@ -1,3 +1,4 @@
+openpyxl>=2.4.9
 pandas-datareader>=0.5.0
 zipline>=1.1.1
 cryptography>=1.8.1
