@@ -9,6 +9,7 @@ import pandas
 
 from strategy.strategy import Strategy
 from utility.utility import *
+from utility.data_utility import DataUtility
 
 
 class OverReactStrategy(Strategy):
@@ -41,7 +42,7 @@ class OverReactStrategy(Strategy):
         :param price_history: a 2-D data frame that has price history  
         :return: True: buying candidate; False: Not buying candidate
         """
-        price_history, target_date = self.calibrate(price_history, target_date)
+        price_history, target_date = DataUtility.calibrate_price_history(price_history, target_date)
         if price_history is None or price_history.shape[0] < 300:
             return None
         if price_history[StockPriceField.Close.value][-1] >= price_history[StockPriceField.Close.value][-2]:

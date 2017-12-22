@@ -9,6 +9,7 @@ import concurrent.futures
 import logging
 import re
 import shutil
+import numpy as np
 
 import pandas
 import pandas_datareader.data as web
@@ -87,8 +88,13 @@ class UsaMarket(StockMarket):
                             continue  # skip stock that is not in stock_list
                         if not symbol_pattern.match(stock.Symbol):
                             continue  # skip invalid symbols
-                        start_date = pandas.to_datetime(str(stock.IPO)) if stock.IPO != 'n/a' else pandas.to_datetime(
-                            Utility.get_config().history_start_date)
+                        if isinstance(stock.IPO, str):
+                            start_date = Utility.get_config().history_start_date if stock.IPO == 'n/a' else stock.IPO
+                        elif np.isnan(stock.IPO):
+                            start_date = Utility.get_config().history_start_date
+                        else:
+                            start_date = str(int(stock.IPO))
+                        start_date = pandas.to_datetime(start_date)
                         futures.append(executor.submit(self.refresh_stock, exchange, stock.Symbol, start_date))
                         total_symbols += 1
 
