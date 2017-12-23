@@ -100,13 +100,18 @@ class Utility:
 
     @staticmethod
     def decrypt(cipher_text: str) -> str:
-        if cipher_text:
-            return Utility.__cipher_suite.decrypt(cipher_text.encode('utf-8'))
+        if isinstance(cipher_text, bytes):
+            return Utility.__cipher_suite.decrypt(cipher_text).decode('utf-8')
+        elif isinstance(cipher_text, str):
+            return Utility.__cipher_suite.decrypt(cipher_text.encode('utf-8')).decode('utf-8')
         else:
             return ''
 
     @staticmethod
     def encrypt(text: str) -> str:
-        return Utility.__cipher_suite.encrypt(text)
-
-
+        if isinstance(text, bytes):
+            return Utility.__cipher_suite.encrypt(text).decode('utf-8')
+        elif isinstance(text, str):
+            return Utility.__cipher_suite.encrypt(text.encode('utf-8')).decode('utf-8')
+        else:
+            return ''

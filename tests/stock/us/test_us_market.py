@@ -1,7 +1,6 @@
 import unittest
-import os
-from stock.us.us_market import UsaMarket
 
+from stock.us.us_market import UsaMarket
 from utility.utility import *
 
 
