@@ -47,12 +47,14 @@ class ProfitLockSeller:
     def update_sell_order(self, symbol: str):
         position = self.positions[symbol]
         if position is not None:
+            shares = int(float(position['quantity']))
+            cost_basis = float(position['average_buy_price'])
+            report = '[%s] %d shares @ $%.2f' % (symbol, shares, cost_basis)
             history, errors, errors = self.market.refresh_stock(exchange='', symbol=symbol,
                                                                 start_date=datetime.datetime(1990, 1, 1))
             if history is None:
                 return
             new_sell_price = round(self.sell_strategy.get_sell_price(history), 2)
-            cost_basis = float(position['average_buy_price'])
             # new sell price must larger than cost_basis
             if new_sell_price < cost_basis:
                 return
@@ -67,12 +69,12 @@ class ProfitLockSeller:
                 # place new order with new price
                 self._place_stop_limit_order(position['instrument'], int(float(position['quantity'])),
                                              new_sell_price, new_sell_price)
-                report = '[{0}] ${1:.2f} ({2:+.2%}) to ${3:.2f} ({4:+.2%})'.format(
-                    symbol, current_sell_price, current_sell_price / cost_basis - 1,
-                    new_sell_price, new_sell_price / cost_basis - 1
+                report += '; ${0:.2f} ({1:+.2%}) to ${2:.2f} ({3:+.2%})'.format(
+                    current_sell_price, current_sell_price / cost_basis - 1, new_sell_price,
+                    new_sell_price / cost_basis - 1
                 )
-                self.reports.append(report)
-                self.logger.info(report)
+            self.reports.append(report)
+            self.logger.info(report)
 
     def _place_stop_limit_order(self, instrument: str, shares: int, stop_price: float, limit_price: float):
         payload = {
@@ -89,16 +91,3 @@ class ProfitLockSeller:
         }
         res = self.robinhood.session.post(self.robinhood.endpoints['orders'], data=payload)
         res.raise_for_status()
-
-
-if __name__ == '__main__':
-    os.makedirs('logs', exist_ok=True)
-    logging.config.dictConfig(Utility.get_logging_config())
-    seller = ProfitLockSeller()
-    if seller.login(username="xinwucheng@gmail.com", password="CHeeSE1982"):
-        seller.refresh_account()
-        for symbol, position in seller.positions.items():
-            try:
-                seller.update_sell_order(symbol)
-            except Exception as e:
-                print("Unexpected error:", e)
