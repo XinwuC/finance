@@ -78,7 +78,7 @@ class Program:
         # send mail
         if self.args.send_mail:
             msg = MIMEMultipart('alternative')
-            # msg['From'] = self.config.mail_account
+            msg['From'] = self.config.mail_account
             msg['To'] = self.config.mail_to
             msg['Subject'] = '[%s] Algorithm Trading Reports' % datetime.date.today()
             msg.attach(MIMEText(self.text_report, 'plain'))
@@ -164,6 +164,7 @@ class Program:
                             len(buyings[market.market]), market.market))
                 except Exception as e:
                     self.logger.exception('Failed to run strategies for %s' % market.market, e)
+        self.generate_buying_report(buyings)
 
         # refresh robinhood account
         if 'robinhood' in self.args.mode or 'all' in self.args.mode:
@@ -174,7 +175,6 @@ class Program:
                 self.logger.exception('Failed to refresh Robinhood account', e)
 
         # record buying options if strategies have been evaluated
-        self.generate_buying_report(buyings)
         self.save_report()
 
 

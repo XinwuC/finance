@@ -52,27 +52,21 @@ class ProfitLockSeller:
             report = '[%s] %d shares @ $%.2f' % (symbol, shares, cost_basis)
             history, errors, errors = self.market.refresh_stock(exchange='', symbol=symbol,
                                                                 start_date=datetime.datetime(1990, 1, 1))
-            if history is None:
-                return
             new_sell_price = round(self.sell_strategy.get_sell_price(history), 2)
             # new sell price must larger than cost_basis
-            if new_sell_price < cost_basis:
-                return
-            # new sell price must larger than previous orders
-            order = self.open_orders.get(symbol)
-            current_sell_price = 0 if order is None else float(order['price'])
-            if order is not None and current_sell_price < new_sell_price:
-                # cancel current sell order
-                res = self.robinhood.session.post('https://api.robinhood.com/orders/%s/cancel/' % order['id'])
-                res.raise_for_status()
-            if current_sell_price < new_sell_price:
-                # place new order with new price
-                self._place_stop_limit_order(position['instrument'], int(float(position['quantity'])),
-                                             new_sell_price, new_sell_price)
-                report += '; ${0:.2f} ({1:+.2%}) to ${2:.2f} ({3:+.2%})'.format(
-                    current_sell_price, current_sell_price / cost_basis - 1, new_sell_price,
-                    new_sell_price / cost_basis - 1
-                )
+            if new_sell_price > cost_basis:
+                # new sell price must larger than cost_basis
+                order = self.open_orders.get(symbol)
+                current_sell_price = 0 if order is None else float(order['price'])
+                if order is not None and current_sell_price < new_sell_price:
+                    # cancel current sell order
+                    res = self.robinhood.session.post('https://api.robinhood.com/orders/%s/cancel/' % order['id'])
+                    res.raise_for_status()
+                if current_sell_price < new_sell_price:
+                    # place new order with new price
+                    self._place_stop_limit_order(position['instrument'], shares, new_sell_price, new_sell_price)
+                    report += '; ${0:.2f} ({1:+.2%}) to ${2:.2f} ({3:+.2%})'.format(current_sell_price,
+                        current_sell_price / cost_basis - 1, new_sell_price, new_sell_price / cost_basis - 1)
             self.reports.append(report)
             self.logger.info(report)
 
