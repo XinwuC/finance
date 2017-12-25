@@ -102,8 +102,8 @@ class Utility:
     def decrypt(cipher_text: str) -> str:
         if isinstance(cipher_text, bytes):
             return Utility.__cipher_suite.decrypt(cipher_text).decode('utf-8')
-        elif isinstance(cipher_text, str):
-            return Utility.__cipher_suite.decrypt(cipher_text.encode('utf-8')).decode('utf-8')
+        elif isinstance(cipher_text, str) and cipher_text.strip():
+            return Utility.__cipher_suite.decrypt(cipher_text.strip().encode('utf-8')).decode('utf-8')
         else:
             return ''
 
@@ -111,7 +111,7 @@ class Utility:
     def encrypt(text: str) -> str:
         if isinstance(text, bytes):
             return Utility.__cipher_suite.encrypt(text).decode('utf-8')
-        elif isinstance(text, str):
-            return Utility.__cipher_suite.encrypt(text.encode('utf-8')).decode('utf-8')
+        elif isinstance(text, str) and text.strip():
+            return Utility.__cipher_suite.encrypt(text.strip().encode('utf-8')).decode('utf-8')
         else:
             return ''

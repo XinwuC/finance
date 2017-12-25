@@ -1,7 +1,8 @@
+import os
 import unittest
 
 from stock.us.us_market import UsaMarket
-from utility.utility import *
+from utility.utility import Utility, Market
 
 
 class UsaMarketTestCases(unittest.TestCase):

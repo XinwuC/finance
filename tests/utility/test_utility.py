@@ -12,3 +12,15 @@ class UtilityTestCase(unittest.TestCase):
         decrypt = Utility.decrypt(encrypt)
         self.assertTrue(isinstance(decrypt, str))
         self.assertEqual(decrypt, text)
+
+    def test_encrypt_decrypt_none(self):
+        self.assertEqual(Utility.encrypt(None), '')
+        self.assertEqual(Utility.decrypt(None), '')
+
+    def test_encrypt_decrypt_empty(self):
+        self.assertEqual(Utility.encrypt(''), '')
+        self.assertEqual(Utility.decrypt(''), '')
+
+    def test_encrypt_decrypt_space(self):
+        self.assertEqual(Utility.encrypt('   \t  '), '')
+        self.assertEqual(Utility.decrypt('  \t   \t'), '')

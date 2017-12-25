@@ -1,4 +1,5 @@
 import unittest
+
 import pandas
 
 from strategy.sell.sell_strategy_lock_profit import SimpleProfitLockSellStrategy
