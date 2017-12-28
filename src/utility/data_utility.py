@@ -3,6 +3,20 @@ from utility.utility import *
 
 
 class DataUtility:
+    @staticmethod
+    def validate_price_history(price_history: pandas.DataFrame) -> bool:
+        '''
+        validate price history schema is correct.
+
+        :param price_history: pandas.dataframe to be validated
+        :return: true if valid, empty price history is deemed as valid. False if invalid
+        '''
+        if price_history is None or price_history.empty:
+            return True
+        elif isinstance(price_history.index[0], datetime.datetime):
+            return True
+        else:
+            return False
 
     @staticmethod
     def calibrate_price_history(price_history: pandas.DataFrame, target_date: datetime.date) \

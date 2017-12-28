@@ -4,6 +4,7 @@ import re
 import pandas
 
 from strategy.strategy import Strategy
+from utility.data_utility import DataUtility
 from utility.utility import *
 
 
@@ -43,6 +44,10 @@ class StrategyExecutor:
                     if stock_list and symbol not in stock_list:
                         continue  # skip symbol that is not in target stock list.
                     prices = pandas.read_csv(entry.path, index_col=0, parse_dates=True)
+                    # validate prices schema is correct
+                    if not DataUtility.validate_price_history(prices):
+                        self.logger.error('Corrupt price history file %s, skip.' % entry.path)
+                        continue
                     self.logger.info('Running strategy %s for [%s] %s' % (strategy.name, exchange, symbol))
                     buying_symbol = strategy.analysis(prices, target_date)
                     if buying_symbol is not None:
