@@ -58,10 +58,10 @@ class Program:
                 self.logger.exception("Error when update sell order for %s: %s", symbol, e)
 
         # generate reports
-        reports = robinhood.generate_reports()
         self.text_report += '===== Robinhood Account =====\n\n'
-        self.text_report += '\n'.join(reports)
-        self.html_report += '<p><h1>Robinhood Account</h1><ul><li>%s</li></ul></p>' % ('</li><li>'.join(reports))
+        self.text_report += '\n'.join(robinhood.reports)
+        self.html_report += '<p><h1>Robinhood Account</h1><ul><li>%s</li></ul></p>' % (
+            '</li><li>'.join(robinhood.reports))
 
     def save_report(self):
         # add html head

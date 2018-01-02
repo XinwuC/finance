@@ -1,22 +1,20 @@
 import datetime
 import logging
-import os
 
 from robinhood.Robinhood import Robinhood
 from stock.us.us_market import UsaMarket
 from strategy.sell.sell_strategy_lock_profit import SimpleProfitLockSellStrategy
-from utility.utility import Utility
 
 
 class ProfitLockSeller:
-
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
         self.market = UsaMarket()
         self.sell_strategy = SimpleProfitLockSellStrategy()
         self.robinhood = Robinhood()
-
+        self.positions = {}
+        self.open_orders = {}
         self.reports = []
 
     def login(self, username, password):
@@ -24,21 +22,16 @@ class ProfitLockSeller:
 
     def refresh_account(self):
         # get positions
-        self.positions = {}
+        self.positions.clear()
         for pos in self.robinhood.securities_owned()['results']:
             symbol = self._get_symbol_name(pos['instrument'])
             self.positions[symbol] = pos
-            self.logger.info('Position: [%s] %s shares @ $%s' % (symbol, pos['quantity'], pos['average_buy_price']))
         # get open orders first
-        self.open_orders = {}
+        self.open_orders.clear()
         for order in self.robinhood.order_history()['results']:
             if self._is_order_open(order):
                 symbol = self._get_symbol_name(order['instrument'])
                 self.open_orders[symbol] = order
-                self.logger.info(
-                    'Order: [%s] %s %s shares @ %s' % (symbol, order['side'], order['quantity'], order['price']))
-        # reset new sell price list
-        self.new_sell_prices = {}
 
     def _is_order_open(self, order):
         return order['state'] == 'queued' or order['state'] == 'unconfirmed' or order['state'] == 'confirmed'
@@ -55,35 +48,23 @@ class ProfitLockSeller:
             history, errors, errors = self.market.refresh_stock(exchange='', symbol=symbol,
                                                                 start_date=datetime.datetime(1990, 1, 1))
             new_sell_price = round(self.sell_strategy.get_sell_price(history), 2)
-            self.new_sell_prices[symbol] = new_sell_price
+            report += ', suggested prices: $%.2f' % new_sell_price
+            # get current sell order price
+            order = self.open_orders.get(symbol)
+            current_sell_price = 0.00 if order is None else float(order['price'])
+            report += ', current sell order: $%.2f' % current_sell_price
+            # add report for symbol
+            self.reports.append(report)
             # update sell order if conditions are met
-            if new_sell_price > cost_basis:
-                # new sell price must larger than cost_basis
-                order = self.open_orders.get(symbol)
-                current_sell_price = 0 if order is None else float(order['price'])
-                if order is not None and current_sell_price < new_sell_price:
+            if new_sell_price > cost_basis and new_sell_price > current_sell_price:
+                if order is not None:
                     # cancel current sell order
                     res = self.robinhood.session.post('https://api.robinhood.com/orders/%s/cancel/' % order['id'])
                     res.raise_for_status()
-                if current_sell_price < new_sell_price:
-                    # place new order with new price
-                    self._place_stop_limit_order(position['instrument'], shares, new_sell_price, new_sell_price)
-                    report += '; ${0:.2f} ({1:+.2%}) to ${2:.2f} ({3:+.2%})'.format(current_sell_price,
-                        current_sell_price / cost_basis - 1, new_sell_price, new_sell_price / cost_basis - 1)
+                # place new order with new price
+                self._place_stop_limit_order(position['instrument'], shares, new_sell_price, new_sell_price)
             self.reports.append(report)
             self.logger.info(report)
-
-    def generate_reports(self) -> []:
-        reports = []
-        for symbol, position in self.positions.items():
-            report = '[%s] %d shares @ $%.2f' % (symbol, position['quantity'], float(position['average_buy_price']))
-            if symbol in self.open_orders.keys():
-                report += ', sell order: %.2f' % float(self.open_orders[symbol]['price'])
-            if symbol in self.new_sell_prices.keys():
-                report += ', suggested prices: %.2f' % self.new_sell_prices[symbol]
-            reports.append(report)
-        return reports
-
 
     def _place_stop_limit_order(self, instrument: str, shares: int, stop_price: float, limit_price: float):
         payload = {
