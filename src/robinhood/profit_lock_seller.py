@@ -37,6 +37,8 @@ class ProfitLockSeller:
                 self.open_orders[symbol] = order
                 self.logger.info(
                     'Order: [%s] %s %s shares @ %s' % (symbol, order['side'], order['quantity'], order['price']))
+        # reset new sell price list
+        self.new_sell_prices = {}
 
     def _is_order_open(self, order):
         return order['state'] == 'queued' or order['state'] == 'unconfirmed' or order['state'] == 'confirmed'
@@ -53,7 +55,8 @@ class ProfitLockSeller:
             history, errors, errors = self.market.refresh_stock(exchange='', symbol=symbol,
                                                                 start_date=datetime.datetime(1990, 1, 1))
             new_sell_price = round(self.sell_strategy.get_sell_price(history), 2)
-            # new sell price must larger than cost_basis
+            self.new_sell_prices[symbol] = new_sell_price
+            # update sell order if conditions are met
             if new_sell_price > cost_basis:
                 # new sell price must larger than cost_basis
                 order = self.open_orders.get(symbol)
@@ -69,6 +72,18 @@ class ProfitLockSeller:
                         current_sell_price / cost_basis - 1, new_sell_price, new_sell_price / cost_basis - 1)
             self.reports.append(report)
             self.logger.info(report)
+
+    def generate_reports(self) -> []:
+        reports = []
+        for symbol, position in self.positions.items():
+            report = '[%s] %d shares @ $%.2f' % (symbol, position['quantity'], float(position['average_buy_price']))
+            if symbol in self.open_orders.keys():
+                report += ', sell order: %.2f' % float(self.open_orders[symbol]['price'])
+            if symbol in self.new_sell_prices.keys():
+                report += ', suggested prices: %.2f' % self.new_sell_prices[symbol]
+            reports.append(report)
+        return reports
+
 
     def _place_stop_limit_order(self, instrument: str, shares: int, stop_price: float, limit_price: float):
         payload = {
