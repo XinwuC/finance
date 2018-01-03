@@ -42,19 +42,19 @@ class ProfitLockSeller:
     def update_sell_order(self, symbol: str):
         position = self.positions[symbol]
         if position is not None:
+            # get position data
             shares = int(float(position['quantity']))
             cost_basis = float(position['average_buy_price'])
             report = '[%s] %d shares @ $%.2f' % (symbol, shares, cost_basis)
+            # get current sell order data
+            order = self.open_orders.get(symbol)
+            current_sell_price = 0.00 if order is None else float(order['price'])
+            report += ', current sell order: $%.2f' % current_sell_price
+            # calculate new sell price
             history, errors, errors = self.market.refresh_stock(exchange='', symbol=symbol,
                                                                 start_date=datetime.datetime(1990, 1, 1))
             new_sell_price = round(self.sell_strategy.get_sell_price(history), 2)
             report += ', suggested prices: $%.2f' % new_sell_price
-            # get current sell order price
-            order = self.open_orders.get(symbol)
-            current_sell_price = 0.00 if order is None else float(order['price'])
-            report += ', current sell order: $%.2f' % current_sell_price
-            # add report for symbol
-            self.reports.append(report)
             # update sell order if conditions are met
             if new_sell_price > cost_basis and new_sell_price > current_sell_price:
                 if order is not None:
@@ -63,6 +63,7 @@ class ProfitLockSeller:
                     res.raise_for_status()
                 # place new order with new price
                 self._place_stop_limit_order(position['instrument'], shares, new_sell_price, new_sell_price)
+                report += ', new order placed'
             self.reports.append(report)
             self.logger.info(report)
 
