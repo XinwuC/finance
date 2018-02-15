@@ -19,7 +19,7 @@ class DataUtility:
             return False
 
     @staticmethod
-    def calibrate_price_history(price_history: pandas.DataFrame, target_date: datetime.date) \
+    def calibrate_price_history(price_history: pandas.DataFrame, target_date: datetime.date = None) \
             -> (pandas.DataFrame, datetime.date):
         '''
         calibrate price history:

@@ -134,8 +134,8 @@ class UsaMarket(StockMarket):
                 del yahoo_data['Adj Close']
                 break
             except Exception as e:
-                self.logger.error("Failed to get Yahoo! data for [%s] (%s) price history, %s", exchange.upper(), symbol,
-                                  e)
+                self.logger.error("Failed to get Yahoo! data for [%s] (%s) price history, %s",
+                                  exchange.upper(), symbol, e)
         return yahoo_data
 
     def _get_google_data(self, exchange, symbol, start, end):
@@ -145,6 +145,6 @@ class UsaMarket(StockMarket):
                 google_data = web.get_data_google(symbol.strip(), start, end)
                 break
             except Exception as e:
-                self.logger.error("Failed to get Google data for [%s] (%s) price history, %s", exchange.upper(), symbol,
-                                  e)
+                self.logger.error("Failed to get Google data for [%s] (%s) price history, %s",
+                                  exchange.upper(), symbol, e)
         return google_data

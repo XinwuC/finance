@@ -53,8 +53,10 @@ class ProfitLockSeller:
             # calculate new sell price
             history, errors, errors = self.market.refresh_stock(exchange='', symbol=symbol,
                                                                 start_date=datetime.datetime(1990, 1, 1))
-            new_sell_price = round(self.sell_strategy.get_sell_price(history), 2)
-            report += ', suggested prices: $%.2f' % new_sell_price
+            new_sell_price = round(self.sell_strategy.get_sell_price(cost_basis, history), 2)
+            report += ', suggest: ${0:+.2f} ({1:+.2%}, ${1:+.2f})'.format(new_sell_price,
+                                                                          new_sell_price / cost_basis - 1,
+                                                                          (new_sell_price - cost_basis) * shares)
             # update sell order if conditions are met
             if new_sell_price > cost_basis and new_sell_price > current_sell_price:
                 if order is not None:

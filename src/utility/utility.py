@@ -5,7 +5,10 @@ import os
 from collections import namedtuple
 from enum import Enum
 
+import pandas as pd
 from cryptography.fernet import Fernet
+
+from utility.data_utility import DataUtility
 
 
 # public enums
@@ -97,6 +100,16 @@ class Utility:
         history_folder = Utility.get_data_folder(market=market, folder=DataFolder.Stock_History)
         file_name = '%s-%s-%s.csv' % (exchange, ipo_year, symbol)
         return os.path.join(history_folder, file_name)
+
+    @staticmethod
+    def load_stock_price(market: Market, symbol: str) -> pd.DataFrame:
+        file = os.path.join(Utility.get_data_folder(market=market, folder=DataFolder.Stock_History), '*%s.csv' % symbol)
+        files = glob.glob(file)
+        if not files:
+            raise FileExistsError('Cannot file: %s' % file)
+        price = pd.read_csv(files[0], index_col=0, parse_dates=True)
+        DataUtility.calibrate_price_history(price)
+        return price
 
     @staticmethod
     def decrypt(cipher_text: str) -> str:
