@@ -11,12 +11,12 @@
       "nyse",
       "amex"
     ],
-    "concurrent": 2,
+    "concurrent": 8,
     "stock_providers": [
+      "morningstar",
       "av",
       "quandl",
-      "iex",
-      "morningstar"
+      "iex"
     ],
     "stock_list_provider": "http://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=%s&render=download",
     "symbol_page": "https://finance.yahoo.com/quote",

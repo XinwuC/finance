@@ -9,8 +9,8 @@ from smtplib import SMTP
 import pandas
 from dateutil import parser
 
-from stock.china.china_market import ChinaMarket
-from stock.us.us_market import UsaMarket
+from stock.china_market import ChinaMarket
+from stock.us_market import UsaMarket
 from utility.utility import *
 from robinhood.profit_lock_seller import ProfitLockSeller
 from robinhood.exceptions import RobinhoodException

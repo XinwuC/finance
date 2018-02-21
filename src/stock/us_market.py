@@ -9,6 +9,7 @@ import concurrent.futures
 import logging
 import re
 import shutil
+from threading import BoundedSemaphore
 
 import numpy as np
 import pandas
@@ -34,6 +35,7 @@ class UsaMarket(StockMarket):
         self.provider_url = provider_url
         self.exchanges = exchanges
         self.concurrent = concurrent
+        self.av_semaphore = BoundedSemaphore(value=1)  # 1 QPS for AlphaVantange download
         self.retry = retry
         self.data_sources = []
         for provider in stock_providers:
@@ -112,34 +114,29 @@ class UsaMarket(StockMarket):
                         else:
                             start_date = str(int(stock.IPO))
                         start_date = pandas.to_datetime(start_date)
-                        if self.concurrent > 1:
-                            futures.append(executor.submit(self.refresh_stock, stock.Symbol, start_date))
-                        else:
-                            symbols_no_data += self.refresh_stock(stock.Symbol, start_date) is None
+                        futures.append(executor.submit(self.refresh_stock, stock.Symbol, start_date))
                         total_symbols += 1
         for future in futures:
             symbols_no_data += (future.result() is None)
-        self.logger.error('Stock prices update completed, %s (%s) symbols has no data.', symbols_no_data, total_symbols)
+        self.logger. \
+            error('Stock prices update completed, %s (%s) symbols has no data.', symbols_no_data, total_symbols)
 
-    def refresh_stock(self, symbol: str, start_date: datetime, end_date=datetime.datetime.today()):
-        history_prices = self.download_data(symbol, start_date, end_date)
-        if history_prices is not None:
-            history_prices.to_csv(Utility.get_stock_price_history_file(Market.US, symbol))
-            self.logger.info('Updated price history for [%s]\t(%s - %s)', symbol, start_date.date(), end_date.date())
-        return history_prices
-
-    def download_data(self, symbol: str, start: datetime.datetime, end: datetime.datetime) -> pd.DataFrame:
+    def refresh_stock(self, symbol: str, start: datetime, end=datetime.datetime.today()):
         data = None
         for download_source in self.data_sources:
             data = download_source(symbol, start, end)
             if data is not None:
+                data.to_csv(Utility.get_stock_price_history_file(Market.US, symbol))
+                self.logger.info('Updated price history for [%s]\t(%s - %s) from %s', symbol, start.date(), end.date()
+                                 , download_source.__name__)
                 break
         return data
 
     def _download_AlphaVantage(self, symbol: str, start, end) -> pd.DataFrame:
         data = None
         try:
-            data = self.alpha_vantage.get_daily_adjusted(symbol, outputsize='full')[0]
+            with self.av_semaphore:
+                data = self.alpha_vantage.get_daily_adjusted(symbol, outputsize='full')[0]
             data = data[['1. open', '2. high', '3. low', '5. adjusted close', '6. volume']]
             data.index.rename(StockPriceField.Date.value, inplace=True)
             data[StockPriceField.Symbol.value] = symbol.strip()
@@ -156,8 +153,10 @@ class UsaMarket(StockMarket):
     def _download_morningstar(self, symbol: str, start: datetime.datetime, end: datetime.datetime) -> pd.DataFrame:
         data = None
         try:
+            # TODO: pandas.DataReader-0.6.0 would stack overflow when retry_count>0 for morningstar download,
+            # TODO: reset after pandas.DataReader fix the issue
             data = web.DataReader(symbol.strip(), 'morningstar', start, end + datetime.timedelta(days=1),
-                                  retry_count=self.retry)
+                                  retry_count=0)
             data.reset_index(level=[0], inplace=True)
             data.index.rename(StockPriceField.Date.value, inplace=True)
             data.rename(columns={'Symbol': StockPriceField.Symbol.value,
