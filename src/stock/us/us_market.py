@@ -33,14 +33,17 @@ class UsaMarket(StockMarket):
         self.exchanges = exchanges
         self.concurrent = concurrent
         self.retry = retry
-        self.alpha_vantage = TimeSeries(key=avkey, retries=retry, output_format='pandas', indexing_type='date')
-        self.data_sources = [self._download_AlphaVantage, self._download_morningstar, self._download_quandl,
-                             self._download_iex]
+        if avkey is None:
+            self.data_sources = []
+        else:
+            self.alpha_vantage = TimeSeries(key=avkey, retries=retry, output_format='pandas', indexing_type='date')
+            self.data_sources = [self._download_AlphaVantage]
+        self.data_sources.extend([self._download_morningstar, self._download_quandl, self._download_iex])
 
     def refresh_listing(self, excel_file=Utility.get_stock_listing_xlsx(Market.US)):
         """
         refresh symbols lists from source provider, and store in sto
-        
+
         :param excel_file: file name to the stored file, actual file name will append _yyyy-mm-dd.xlsx
         :return: void
         """
@@ -68,12 +71,12 @@ class UsaMarket(StockMarket):
         Refresh stock price history. It will first get latest symbols list from the web services provided in configs,
         then fetch stock price history from Yahoo! and Google, Yahoo! data take precedence over Google data.
 
-        The data will store in the target location specified in configs. Each symbol stored in one file, naming as 
+        The data will store in the target location specified in configs. Each symbol stored in one file, naming as
         %exchange%_%symbol%.csv
 
         Errors are logged in error.log file.
 
-        :return: None 
+        :return: None
         """
         total_symbols = 0
         symbols_no_data = 0

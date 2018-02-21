@@ -9,10 +9,10 @@ class UsaMarketTestCases(unittest.TestCase):
 
     def setUp(self):
         self.listing_file = Utility.get_stock_listing_xlsx(Market.US)
-        self.stock_file_CINF = Utility.get_stock_price_history_file(Market.US, 'CINF', '1985', 'nasdaq')
-        self.stock_file_GOOG = Utility.get_stock_price_history_file(Market.US, 'GOOG', '2004', 'nasdaq')
-        self.stock_file_MMM = Utility.get_stock_price_history_file(Market.US, 'MMM', '1985', 'nyse')
-        self.stock_file_GS = Utility.get_stock_price_history_file(Market.US, 'GS', '1999', 'nyse')
+        self.stock_file_CINF = Utility.get_stock_price_history_file(Market.US, 'CINF')
+        self.stock_file_GOOG = Utility.get_stock_price_history_file(Market.US, 'GOOG')
+        self.stock_file_MMM = Utility.get_stock_price_history_file(Market.US, 'MMM')
+        self.stock_file_GS = Utility.get_stock_price_history_file(Market.US, 'GS')
 
     def test_refresh_listing(self):
         target = UsaMarket()
