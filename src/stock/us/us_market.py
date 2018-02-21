@@ -26,6 +26,7 @@ class UsaMarket(StockMarket):
                  exchanges=Utility.get_config(Market.US).exchanges,
                  concurrent=Utility.get_config(Market.US).concurrent,
                  retry=Utility.get_config().data_retry,
+                 stock_providers=Utility.get_config(Market.US).stock_providers,
                  avkey=None):
         super(UsaMarket, self).__init__(Market.US)
         self.logger = logging.getLogger(__name__)
@@ -33,12 +34,18 @@ class UsaMarket(StockMarket):
         self.exchanges = exchanges
         self.concurrent = concurrent
         self.retry = retry
-        if avkey is None:
-            self.data_sources = []
-        else:
-            self.alpha_vantage = TimeSeries(key=avkey, retries=retry, output_format='pandas', indexing_type='date')
-            self.data_sources = [self._download_AlphaVantage]
-        self.data_sources.extend([self._download_morningstar, self._download_quandl, self._download_iex])
+        self.data_sources = []
+        for provider in stock_providers:
+            if provider == 'av' and avkey is not None:
+                self.concurrent = 1  # reset concurrent to 1 as av allows 1QPS only
+                self.alpha_vantage = TimeSeries(key=avkey, retries=retry, output_format='pandas', indexing_type='date')
+                self.data_sources.append(self._download_AlphaVantage)
+            elif provider == 'morningstar':
+                self.data_sources.append(self._download_morningstar)
+            elif provider == 'quandl':
+                self.data_sources.append(self._download_quandl)
+            elif provider == 'iex':
+                self.data_sources.append(self._download_iex)
 
     def refresh_listing(self, excel_file=Utility.get_stock_listing_xlsx(Market.US)):
         """

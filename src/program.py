@@ -112,7 +112,7 @@ class Program:
         parser.add_argument('-rhp', '--robinhood_password', dest='rhp', default='', help='Robinhood account password',
                             required=False)
         parser.add_argument('-avkey', '--alphavantage_key', dest='avkey', default='', help='AlphaVantage API key',
-                            required=True)
+                            required=False)
         parser.add_argument('--send_mail', dest='send_mail', help='send mail after run strategies', action='store_true')
         return parser.parse_args()
 
