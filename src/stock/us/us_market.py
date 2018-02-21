@@ -27,7 +27,8 @@ class UsaMarket(StockMarket):
                  concurrent=Utility.get_config(Market.US).concurrent,
                  retry=Utility.get_config().data_retry,
                  stock_providers=Utility.get_config(Market.US).stock_providers,
-                 avkey=None):
+                 avkey=None,
+                 qkey=None):
         super(UsaMarket, self).__init__(Market.US)
         self.logger = logging.getLogger(__name__)
         self.provider_url = provider_url
@@ -46,6 +47,7 @@ class UsaMarket(StockMarket):
                 self.data_sources.append(self._download_quandl)
             elif provider == 'iex':
                 self.data_sources.append(self._download_iex)
+        self.qkey = qkey
 
     def refresh_listing(self, excel_file=Utility.get_stock_listing_xlsx(Market.US)):
         """
@@ -191,7 +193,7 @@ class UsaMarket(StockMarket):
         data = None
         try:
             data = web.DataReader('WIKI/%s' % symbol.strip(), 'quandl', start, end + datetime.timedelta(days=1),
-                                  retry_count=self.retry)
+                                  retry_count=self.retry, access_key=self.qkey)
             data = data[['AdjOpen', 'AdjHigh', 'AdjLow', 'AdjClose', 'AdjVolume']]
             data.index.rename(StockPriceField.Date.value, inplace=True)
             data[StockPriceField.Symbol.value] = symbol.strip()

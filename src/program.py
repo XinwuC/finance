@@ -113,6 +113,8 @@ class Program:
                             required=False)
         parser.add_argument('-avkey', '--alphavantage_key', dest='avkey', default='', help='AlphaVantage API key',
                             required=False)
+        parser.add_argument('-qkey', '--quandl_key', dest='qkey', default='', help='Quandl API key',
+                            required=False)
         parser.add_argument('--send_mail', dest='send_mail', help='send mail after run strategies', action='store_true')
         return parser.parse_args()
 
@@ -120,12 +122,13 @@ class Program:
         # add countries to run
         markets = []
         if 'all' in self.args.country:
-            markets.append(UsaMarket(avkey=Utility.decrypt(self.args.avkey)))
+            markets.append(UsaMarket(avkey=Utility.decrypt(self.args.avkey), qkey=Utility.decrypt(self.args.qkey)))
             markets.append(ChinaMarket())
         else:
             for c in self.args.country:
                 if Market.US.value == c:
-                    markets.append(UsaMarket(avkey=Utility.decrypt(self.args.avkey)))
+                    markets.append(UsaMarket(avkey=Utility.decrypt(self.args.avkey),
+                                             qkey=Utility.decrypt(self.args.qkey)))
                 elif Market.China.value == c:
                     markets.append(ChinaMarket())
 
