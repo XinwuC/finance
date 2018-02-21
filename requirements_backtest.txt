@@ -1,6 +1,7 @@
 openpyxl>=2.4.9
 pandas==0.19.0
 pandas-datareader>=0.6.0
+alpha_vantage>=1.9.0
 zipline>=1.1.1
 cryptography>=1.8.1
 coverage>=4.4.2

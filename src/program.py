@@ -111,6 +111,8 @@ class Program:
                             required=False)
         parser.add_argument('-rhp', '--robinhood_password', dest='rhp', default='', help='Robinhood account password',
                             required=False)
+        parser.add_argument('-avkey', '--alphavantage_key', dest='avkey', default='', help='AlphaVantage API key',
+                            required=True)
         parser.add_argument('--send_mail', dest='send_mail', help='send mail after run strategies', action='store_true')
         return parser.parse_args()
 
@@ -118,12 +120,12 @@ class Program:
         # add countries to run
         markets = []
         if 'all' in self.args.country:
-            markets.append(UsaMarket())
+            markets.append(UsaMarket(avkey=Utility.decrypt(self.args.avkey)))
             markets.append(ChinaMarket())
         else:
             for c in self.args.country:
                 if Market.US.value == c:
-                    markets.append(UsaMarket())
+                    markets.append(UsaMarket(avkey=Utility.decrypt(self.args.avkey)))
                 elif Market.China.value == c:
                     markets.append(ChinaMarket())
 

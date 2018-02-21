@@ -9,11 +9,13 @@ import concurrent.futures
 import logging
 import re
 import shutil
-import numpy as np
 
+import numpy as np
 import pandas
 import pandas_datareader.data as web
+from alpha_vantage.timeseries import TimeSeries
 from dateutil.relativedelta import relativedelta
+
 from stock.stock_market import StockMarket
 from utility.utility import *
 
@@ -23,13 +25,17 @@ class UsaMarket(StockMarket):
                  provider_url=Utility.get_config(Market.US).stock_list_provider,
                  exchanges=Utility.get_config(Market.US).exchanges,
                  concurrent=Utility.get_config(Market.US).concurrent,
-                 retry=Utility.get_config().data_retry):
+                 retry=Utility.get_config().data_retry,
+                 avkey=None):
         super(UsaMarket, self).__init__(Market.US)
         self.logger = logging.getLogger(__name__)
         self.provider_url = provider_url
         self.exchanges = exchanges
         self.concurrent = concurrent
         self.retry = retry
+        self.alpha_vantage = TimeSeries(key=avkey, retries=retry, output_format='pandas', indexing_type='date')
+        self.data_sources = [self._download_AlphaVantage, self._download_morningstar, self._download_quandl,
+                             self._download_iex]
 
     def refresh_listing(self, excel_file=Utility.get_stock_listing_xlsx(Market.US)):
         """
@@ -94,7 +100,10 @@ class UsaMarket(StockMarket):
                         else:
                             start_date = str(int(stock.IPO))
                         start_date = pandas.to_datetime(start_date)
-                        futures.append(executor.submit(self.refresh_stock, stock.Symbol, start_date))
+                        if self.concurrent > 1:
+                            futures.append(executor.submit(self.refresh_stock, stock.Symbol, start_date))
+                        else:
+                            symbols_no_data += self.refresh_stock(stock.Symbol, start_date) is None
                         total_symbols += 1
         for future in futures:
             symbols_no_data += (future.result() is None)
@@ -108,11 +117,28 @@ class UsaMarket(StockMarket):
         return history_prices
 
     def download_data(self, symbol: str, start: datetime.datetime, end: datetime.datetime) -> pd.DataFrame:
-        data = self._download_morningstar(symbol, start, end)
-        if data is None:
-            data = self._download_quandl(symbol, start, end)
-        if data is None:
-            data = self._download_iex(symbol, start, end)
+        data = None
+        for download_source in self.data_sources:
+            data = download_source(symbol, start, end)
+            if data is not None:
+                break
+        return data
+
+    def _download_AlphaVantage(self, symbol: str, start, end) -> pd.DataFrame:
+        data = None
+        try:
+            data = self.alpha_vantage.get_daily_adjusted(symbol, outputsize='full')[0]
+            data = data[['1. open', '2. high', '3. low', '5. adjusted close', '6. volume']]
+            data.index.rename(StockPriceField.Date.value, inplace=True)
+            data[StockPriceField.Symbol.value] = symbol.strip()
+            data.rename(columns={'Symbol': StockPriceField.Symbol.value,
+                                 '1. open': StockPriceField.Open.value,
+                                 '2. high': StockPriceField.High.value,
+                                 '3. low': StockPriceField.Low.value,
+                                 '5. adjusted close': StockPriceField.Close.value,
+                                 '6. volume': StockPriceField.Volume.value}, inplace=True)
+        except Exception as e:
+            self.logger.error("Failed to get (%s) price history from AlphaVantage, %s", symbol, e)
         return data
 
     def _download_morningstar(self, symbol: str, start: datetime.datetime, end: datetime.datetime) -> pd.DataFrame:

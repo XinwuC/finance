@@ -11,7 +11,7 @@
       "nyse",
       "amex"
     ],
-    "concurrent": 8,
+    "concurrent": 1,
     "symbols_file": "symbols",
     "stock_list_provider": "http://www.nasdaq.com/screening/companies-by-name.aspx?letter=0&exchange=%s&render=download",
     "symbol_page": "https://finance.yahoo.com/quote",
