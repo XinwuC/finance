@@ -13,7 +13,7 @@ import numpy as np
 
 import pandas
 import pandas_datareader.data as web
-
+from dateutil.relativedelta import relativedelta
 from stock.stock_market import StockMarket
 from utility.utility import *
 
@@ -71,13 +71,12 @@ class UsaMarket(StockMarket):
         """
         total_symbols = 0
         symbols_no_data = 0
-        yahoo_errors = 0
-        google_errors = 0
         symbol_pattern = re.compile(r'^(\w|\.)+$')
         futures = []
         # purge stock history folder if refresh all (ie. stock_list is empty)
         if not stock_list:
             shutil.rmtree(Utility.get_data_folder(DataFolder.Stock_History, Market.US), ignore_errors=True)
+        # concurrent download prices
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.concurrent) as executor:
             with pandas.ExcelFile(Utility.get_stock_listing_xlsx(Market.US, latest=True)) as listings:
                 for exchange in listings.sheet_names:
@@ -95,56 +94,76 @@ class UsaMarket(StockMarket):
                         else:
                             start_date = str(int(stock.IPO))
                         start_date = pandas.to_datetime(start_date)
-                        futures.append(executor.submit(self.refresh_stock, exchange, stock.Symbol, start_date))
+                        futures.append(executor.submit(self.refresh_stock, stock.Symbol, start_date))
                         total_symbols += 1
-
         for future in futures:
-            (stock_prices, yahoo_error, google_error) = future.result()
-            yahoo_errors += yahoo_error
-            google_errors += google_error
-            symbols_no_data += (2 == yahoo_error + google_error)
-        self.logger.error(
-            'Stock prices update completed, %s (%s) symbols has no data, yahoo has %s errors and google has %s errors.',
-            symbols_no_data, total_symbols, yahoo_errors, google_errors)
+            symbols_no_data += (future.result() is None)
+        self.logger.error('Stock prices update completed, %s (%s) symbols has no data.', symbols_no_data, total_symbols)
 
-    def refresh_stock(self, exchange: str, symbol: str, start_date: datetime, end_date=datetime.date.today()):
-        history_prices = self._get_yahoo_data(exchange, symbol, start_date, end_date)
-        if history_prices is None or history_prices.empty:
-            history_prices = self._get_google_data(exchange, symbol, start_date, end_date)
+    def refresh_stock(self, symbol: str, start_date: datetime, end_date=datetime.datetime.today()):
+        history_prices = self.download_data(symbol, start_date, end_date)
         if history_prices is not None:
-            history_prices.index.rename(StockPriceField.Date.value, inplace=True)
-            history_prices.rename(columns={'Open': StockPriceField.Open.value,
-                                           'High': StockPriceField.High.value,
-                                           'Low': StockPriceField.Low.value,
-                                           'Close': StockPriceField.Close.value,
-                                           'Volume': StockPriceField.Volume.value}, inplace=True)
-            history_prices.insert(0, StockPriceField.Symbol.value, symbol)
-            history_prices.to_csv(Utility.get_stock_price_history_file(Market.US, symbol, start_date.year, exchange))
-            self.logger.info('Updated price history for [%s] %s\t(%s - %s)', exchange.upper(), symbol,
-                             start_date.date(), end_date)
+            history_prices.to_csv(Utility.get_stock_price_history_file(Market.US, symbol))
+            self.logger.info('Updated price history for [%s]\t(%s - %s)', symbol, start_date.date(), end_date.date())
+        return history_prices
 
-        return history_prices, history_prices is None, history_prices is None
+    def download_data(self, symbol: str, start: datetime.datetime, end: datetime.datetime) -> pd.DataFrame:
+        data = self._download_morningstar(symbol, start, end)
+        if data is None:
+            data = self._download_quandl(symbol, start, end)
+        if data is None:
+            data = self._download_iex(symbol, start, end)
+        return data
 
-    def _get_yahoo_data(self, exchange, symbol, start, end):
-        yahoo_data = None
-        for i in range(self.retry):
-            try:
-                yahoo_data = web.get_data_yahoo(symbol.strip(), start, end + datetime.timedelta(days=1))
-                yahoo_data['Close'] = yahoo_data['Adj Close']
-                del yahoo_data['Adj Close']
-                break
-            except Exception as e:
-                self.logger.error("Failed to get Yahoo! data for [%s] (%s) price history, %s",
-                                  exchange.upper(), symbol, e)
-        return yahoo_data
+    def _download_morningstar(self, symbol: str, start: datetime.datetime, end: datetime.datetime) -> pd.DataFrame:
+        data = None
+        try:
+            data = web.DataReader(symbol.strip(), 'morningstar', start, end + datetime.timedelta(days=1),
+                                  retry_count=self.retry)
+            data.reset_index(level=[0], inplace=True)
+            data.index.rename(StockPriceField.Date.value, inplace=True)
+            data.rename(columns={'Symbol': StockPriceField.Symbol.value,
+                                 'Open': StockPriceField.Open.value,
+                                 'High': StockPriceField.High.value,
+                                 'Low': StockPriceField.Low.value,
+                                 'Close': StockPriceField.Close.value,
+                                 'Volume': StockPriceField.Volume.value}, inplace=True)
+        except Exception as e:
+            self.logger.error("Failed to get (%s) price history from morningstar, %s", symbol, e)
+        return data
 
-    def _get_google_data(self, exchange, symbol, start, end):
-        google_data = None
-        for i in range(self.retry):
-            try:
-                google_data = web.get_data_google(symbol.strip(), start, end)
-                break
-            except Exception as e:
-                self.logger.error("Failed to get Google data for [%s] (%s) price history, %s",
-                                  exchange.upper(), symbol, e)
-        return google_data
+    def _download_iex(self, symbol: str, start: datetime.datetime, end: datetime.datetime) -> pd.DataFrame:
+        data = None
+        try:
+            earliest = datetime.datetime.today() - relativedelta(years=5)
+            start = max(earliest, start)
+            end = max(earliest, end)
+            data = web.DataReader(symbol.strip(), 'iex', start, end, retry_count=self.retry)
+            # data.reset_index(level=[0], inplace=True)
+            data.index.rename(StockPriceField.Date.value, inplace=True)
+            data[StockPriceField.Symbol.value] = symbol.strip()
+            data.rename(columns={'open': StockPriceField.Open.value,
+                                 'high': StockPriceField.High.value,
+                                 'low': StockPriceField.Low.value,
+                                 'close': StockPriceField.Close.value,
+                                 'volume': StockPriceField.Volume.value}, inplace=True)
+        except Exception as e:
+            self.logger.error("Failed to get (%s) price history from iex, %s", symbol, e)
+        return data
+
+    def _download_quandl(self, symbol: str, start: datetime.datetime, end: datetime.datetime) -> pd.DataFrame:
+        data = None
+        try:
+            data = web.DataReader('WIKI/%s' % symbol.strip(), 'quandl', start, end + datetime.timedelta(days=1),
+                                  retry_count=self.retry)
+            data = data[['AdjOpen', 'AdjHigh', 'AdjLow', 'AdjClose', 'AdjVolume']]
+            data.index.rename(StockPriceField.Date.value, inplace=True)
+            data[StockPriceField.Symbol.value] = symbol.strip()
+            data.rename(columns={'AdjOpen': StockPriceField.Open.value,
+                                 'AdjHigh': StockPriceField.High.value,
+                                 'AdjLow': StockPriceField.Low.value,
+                                 'AdjClose': StockPriceField.Close.value,
+                                 'AdjVolume': StockPriceField.Volume.value}, inplace=True)
+        except Exception as e:
+            self.logger.error("Failed to get (%s) price history from quandl, %s", symbol, e)
+        return data

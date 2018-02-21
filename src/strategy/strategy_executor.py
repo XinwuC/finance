@@ -35,12 +35,12 @@ class StrategyExecutor:
 
     def _run_strategy(self, strategy, stock_list: [] = [], target_date: datetime.date = None) -> pandas.DataFrame:
         with os.scandir(self.history_folder) as it:
-            name_pattern = re.compile(r'\w+-\w+-\w+.csv')
+            name_pattern = re.compile(r'\w+.csv')
             name_extractor = re.compile(r'\w+')
             result = None  # pandas.DataFrame()
             for entry in it:
                 if entry.is_file() and name_pattern.match(entry.name):
-                    (exchange, ipo, symbol, dummy) = name_extractor.findall(entry.name)
+                    symbol, _ = name_extractor.findall(entry.name)
                     if stock_list and symbol not in stock_list:
                         continue  # skip symbol that is not in target stock list.
                     prices = pandas.read_csv(entry.path, index_col=0, parse_dates=True)
@@ -48,7 +48,7 @@ class StrategyExecutor:
                     if not DataUtility.validate_price_history(prices):
                         self.logger.error('Corrupt price history file %s, skip.' % entry.path)
                         continue
-                    self.logger.info('Running strategy %s for [%s] %s' % (strategy.name, exchange, symbol))
+                    self.logger.info('Running strategy %s for [%s]' % (strategy.name, symbol))
                     buying_symbol = strategy.analysis(prices, target_date)
                     if buying_symbol is not None:
                         if result is None:

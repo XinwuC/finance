@@ -96,9 +96,9 @@ class Utility:
             return os.path.join(listing_folder, 'listing_%s.xlsx' % day.isoformat())
 
     @staticmethod
-    def get_stock_price_history_file(market: Market, symbol: str, ipo_year: str, exchange: str = None):
+    def get_stock_price_history_file(market: Market, symbol: str):
         history_folder = Utility.get_data_folder(market=market, folder=DataFolder.Stock_History)
-        file_name = '%s-%s-%s.csv' % (exchange, ipo_year, symbol)
+        file_name = '%s.csv' % symbol
         return os.path.join(history_folder, file_name)
 
     @staticmethod
