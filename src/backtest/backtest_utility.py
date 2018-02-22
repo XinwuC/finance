@@ -4,7 +4,7 @@ import numpy as np
 import zipline
 from zipline.api import *
 
-from stock.us.us_market import UsaMarket
+from stock.us_market import UsaMarket
 from utility.utility import *
 
 
@@ -17,6 +17,10 @@ class BackTestUtility:
         context.transaction_history = {}
         context.market = UsaMarket()
         context.fixed_buying_amount = context.portfolio.cash / 100
+        context.transaction_history_file = '%s.csv' % datetime.datetime.today()
+        context.input = pd.read_csv('src/backtest/input.csv', index_col=2, parse_dates=True,
+                                    names=['symbol', 'price', 'date'])
+        context.input.index.astype(datetime.date)
 
     @staticmethod
     def match_screen_assets(context):

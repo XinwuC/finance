@@ -21,6 +21,11 @@ from stock.stock_market import StockMarket
 from utility.utility import *
 
 
+class UsaIndex(Enum):
+    SP500 = '^SPX'
+    VIX = 'VI.F'
+
+
 class UsaMarket(StockMarket):
     def __init__(self,
                  provider_url=Utility.get_config(Market.US).stock_list_provider,
@@ -126,10 +131,28 @@ class UsaMarket(StockMarket):
         for download_source in self.data_sources:
             data = download_source(symbol, start, end)
             if data is not None:
+                data.sort_index(inplace=True)
                 data.to_csv(Utility.get_stock_price_history_file(Market.US, symbol))
-                self.logger.info('Updated price history for [%s]\t(%s - %s) from %s', symbol, start.date(), end.date()
-                                 , download_source.__name__)
+                self.logger.info('Updated price history for [%s]\t(%s - %s) from %s', symbol, start.date(), end.date(),
+                                 download_source.__name__)
                 break
+        return data
+
+    def refresh_index(self, index):
+        if not isinstance(index, UsaIndex):
+            return self.refresh_stock(index, datetime.datetime(1982, 1, 1))
+
+        data = None
+        if UsaIndex.SP500 == index:
+            data = self._download_stooq('^SPX', datetime.datetime(1982, 1, 1), datetime.datetime.today())
+        elif UsaIndex.VIX == index:
+            data = self._download_AlphaVantage('^VIX', datetime.datetime(1982, 1, 1), datetime.datetime.today())
+            if data is not None:
+                del data[StockPriceField.Volume.value]
+        if data is not None:
+            data.sort_index(inplace=True)
+            data.to_csv(Utility.get_stock_price_history_file(Market.US, index.name))
+            self.logger.info('Updated index [%s] history', index.name)
         return data
 
     def _download_AlphaVantage(self, symbol: str, start, end) -> pd.DataFrame:
@@ -155,8 +178,7 @@ class UsaMarket(StockMarket):
         try:
             # TODO: pandas.DataReader-0.6.0 would stack overflow when retry_count>0 for morningstar download,
             # TODO: reset after pandas.DataReader fix the issue
-            data = web.DataReader(symbol.strip(), 'morningstar', start, end + datetime.timedelta(days=1),
-                                  retry_count=0)
+            data = web.DataReader(symbol.strip(), 'morningstar', start, end + datetime.timedelta(days=1), retry_count=0)
             data.reset_index(level=[0], inplace=True)
             data.index.rename(StockPriceField.Date.value, inplace=True)
             data.rename(columns={'Symbol': StockPriceField.Symbol.value,
@@ -203,4 +225,20 @@ class UsaMarket(StockMarket):
                                  'AdjVolume': StockPriceField.Volume.value}, inplace=True)
         except Exception as e:
             self.logger.error("Failed to get (%s) price history from quandl, %s", symbol, e)
+        return data
+
+    def _download_stooq(self, symbol: str, start: datetime.datetime, end: datetime.datetime) -> pd.DataFrame:
+        data = None
+        try:
+            data = web.DataReader(symbol, 'stooq', start, end + datetime.timedelta(days=1), retry_count=self.retry)
+            data = data[['Open', 'High', 'Low', 'Close', 'Volume']]
+            data.index.rename(StockPriceField.Date.value, inplace=True)
+            data[StockPriceField.Symbol.value] = symbol
+            data.rename(columns={'Open': StockPriceField.Open.value,
+                                 'High': StockPriceField.High.value,
+                                 'Low': StockPriceField.Low.value,
+                                 'Close': StockPriceField.Close.value,
+                                 'Volume': StockPriceField.Volume.value}, inplace=True)
+        except Exception as e:
+            self.logger.error("Failed to get (%s) price history from stooq, %s", symbol, e)
         return data

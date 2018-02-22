@@ -103,7 +103,7 @@ class Utility:
 
     @staticmethod
     def load_stock_price(market: Market, symbol: str) -> pd.DataFrame:
-        file = os.path.join(Utility.get_data_folder(market=market, folder=DataFolder.Stock_History), '*%s.csv' % symbol)
+        file = os.path.join(Utility.get_data_folder(market=market, folder=DataFolder.Stock_History), '%s.csv' % symbol)
         files = glob.glob(file)
         if not files:
             raise FileExistsError('Cannot file: %s' % file)
