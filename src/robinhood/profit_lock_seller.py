@@ -1,7 +1,7 @@
 import datetime
 import logging
 
-from robinhood.Robinhood import Robinhood
+from Robinhood import Robinhood
 from stock.us_market import UsaMarket
 from strategy.sell.sell_strategy_lock_profit import SimpleProfitLockSellStrategy
 

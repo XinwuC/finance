@@ -1,14 +1,16 @@
 import logging.config
 import math
-import talib.abstract
-import numpy as np
-from matplotlib import pyplot
 
+import numpy as np
+import sklearn.metrics as metrics
+import talib.abstract
 from keras import Sequential
 from keras.layers import Dense, Dropout, GRU
+from matplotlib import pyplot
 from sklearn.preprocessing import MinMaxScaler
-from utility.utility import *
+
 from stock.us_market import UsaMarket, UsaIndex
+from utility.utility import *
 
 
 class lstm:
@@ -22,6 +24,8 @@ class lstm:
         # load market indicator
         sp500 = self.add_features(self.load_stock_data(UsaIndex.SP500.name))
         vix = self.add_features(self.load_stock_data(UsaIndex.VIX.name))
+        sp500.rename(index=str, columns={col: '%s_sp500' % col for col in sp500.columns}, inplace=True)
+        vix.rename(index=str, columns={col: '%s_vix' % col for col in vix.columns}, inplace=True)
         self.market_indicator = pd.concat([sp500, vix], axis=1, join='inner').dropna()
 
     def add_features(self, ohlcv: pd.DataFrame) -> pd.DataFrame:
@@ -51,28 +55,32 @@ class lstm:
         return data
 
     def prepare_data(self, symbol: str, timesteps: int) -> (np.ndarray, np.ndarray):
-        base_data = self.add_features(self.load_stock_data(symbol))
-        # combine with sp500
-        combined_data = pd.concat([base_data, self.market_indicator], axis=1, join='inner').dropna()
+        symbol_features = self.add_features(self.load_stock_data(symbol))
+        # 1. combine with sp500
+        combined_features = pd.concat([symbol_features, self.market_indicator], axis=1, join='inner').dropna()
+        # 2. normalize input data before time steps
+        vol_columns = [col for col in combined_features.columns if col.startswith(StockPriceField.Volume.value)]
+        price_columns = [col for col in combined_features.columns if col not in vol_columns]
+        price_scaler = MinMaxScaler(feature_range=(0, 1)).fit(combined_features[price_columns].values.reshape(-1, 1))
+        vol_scaler = MinMaxScaler(feature_range=(0, 1)).fit(combined_features[vol_columns].values.reshape(-1, 1))
+        for price_col in price_columns:
+            combined_features[price_col] = price_scaler.transform(combined_features[price_col].values.reshape(-1, 1))
+        for vol_col in vol_columns:
+            combined_features[vol_col] = vol_scaler.transform(combined_features[vol_col].values.reshape(-1, 1))
+        assert combined_features.values.min() >= 0 and combined_features.values.max() <= 1
+        # 3. add time steps
         training_steps = []
         for step in range(timesteps, 0, -1):
-            one_step = base_data.shift(step)
-            one_step.columns = ['%s(-%d)' % (col, step) for col in base_data.columns]
+            one_step = combined_features.shift(step)
+            one_step.columns = ['%s(-%d)' % (col, step) for col in combined_features.columns]
             training_steps.append(one_step)
-        input_data = pd.concat(training_steps, axis=1, join='inner').dropna()
-        output_data = self.create_labels(ohlcv=base_data, timesteps=timesteps).ix[input_data.index]
-        assert input_data.shape[0] == output_data.shape[0]
-
-        # normalize
-        vol_columns = [col for col in input_data.columns if col.startswith(StockPriceField.Volume.value)]
-        price_columns = [col for col in input_data.columns if col not in vol_columns]
-        nomalized_input = np.concatenate([MinMaxScaler(feature_range=(0, 1)).fit_transform(input_data[price_columns]),
-                                          MinMaxScaler(feature_range=(0, 1)).fit_transform(input_data[vol_columns])],
-                                         axis=1)
-        assert input_data.shape == nomalized_input.shape
-        # reshape to 3D with timesteps
-        input = nomalized_input.reshape(-1, timesteps, base_data.shape[1])
-        output = output_data.values
+        input_timesteps = pd.concat(training_steps, axis=1, join='inner').dropna()
+        output_data = combined_features['high'].shift(-1).ix[input_timesteps.index]
+        assert input_timesteps.shape[0] == output_data.shape[0]
+        # 4. reshape to 3D with timesteps
+        input = input_timesteps.values.reshape(-1, timesteps, combined_features.shape[1])
+        output = output_data.values.reshape(-1, 1)
+        assert input.shape[0] == output.shape[0]
         return input, output
 
     def split_data(self, input: np.ndarray, output: np.ndarray, validate_pct: float = 0.2, test_pct: float = 0.2):
@@ -97,6 +105,9 @@ class lstm:
         self.model.compile(loss='mae', optimizer='adam')
 
     def train_model(self, train_data, train_label, validation_data, validation_label, epochs, batch_size):
+        print('training: %s, label: %s' % (train_data.shape, train_label.shape))
+        print('validation: %s, label: %s' % (validation_data.shape, validation_label.shape))
+        print('epochs: %s, batch size: %s' % (epochs, batch_size))
         return self.model.fit(train_data, train_label, validation_data=(validation_data, validation_label),
                               epochs=epochs, batch_size=batch_size, shuffle=False, verbose=2)
 
@@ -105,7 +116,7 @@ if __name__ == '__main__':
     logging.config.dictConfig(Utility.get_logging_config())
     symbol = 'IBM'
     # load market indicators
-    refresh_prices = True
+    refresh_prices = False
     if refresh_prices:
         us = UsaMarket(avkey='M5351LT3XK977PEQ')
         us.refresh_index(UsaIndex.SP500)
@@ -133,3 +144,5 @@ if __name__ == '__main__':
         pyplot.plot(that[:, i], label='predict_%s' % i)
     pyplot.legend()
     pyplot.show()
+    print('test loss: ', metrics.mean_absolute_error(tl, that))
+
