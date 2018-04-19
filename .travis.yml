@@ -8,7 +8,7 @@ before_install:
   - cd ta-lib/
   - ./configure --prefix=/usr
   - make
-  - make install
+  - sudo make install
 install:
   - pip install -r requirements.txt
   - pip install -U tushare
