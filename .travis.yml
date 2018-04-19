@@ -13,4 +13,4 @@ install:
   - pip install -r requirements.txt
   - pip install -U tushare
 # command to run tests
-script: pytest tests
+script: pytest --rootdir=src tests
