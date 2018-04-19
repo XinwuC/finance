@@ -7,8 +7,8 @@ before_install:
   - tar -xvzf ta-lib-0.4.0-src.tar.gz
   - cd ta-lib/
   - ./configure --prefix=/usr
-  - make
-  - sudo make install
+  - make && sudo make install
+  - cd ..
 install:
   - pip install -r requirements.txt
   - pip install -U tushare
