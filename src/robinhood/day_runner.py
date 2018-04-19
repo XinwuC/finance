@@ -51,20 +51,29 @@ class RobinhoodDayRunner:
                 except Exception as e:
                     self.logger.error("failed to update sell order %d for %s: %s" % (sell_book[symbol], symbol, e))
             time.sleep(60)
+        self.logger.info('Market closed.')
 
     def is_market_open(self):
         current_time_est = datetime.datetime.now(pytz.timezone('US/Eastern'))
-        return 9 <= current_time_est.hour < 20
+        return 9 <= current_time_est.hour < 16
 
     def trade_target_price(self, position, target_price: float):
         bid_prices = self.robinhood.bid_price(position['symbol'])
         max_bid, _ = max(bid_prices, key=lambda bids: bids[0])
-        self.logger.info('Checking %s, current bid: $%s, target: $%.2f' % (position['symbol'], max_bid, target_price))
-        if float(max_bid) > target_price * 0.995:
+        max_bid = float(max_bid)
+        cost_basis = float(position['average_buy_price'])
+        shares = int(float(position['quantity']))
+        target_profit_pct = target_price / cost_basis - 1
+        target_profit = (target_price - cost_basis) * shares
+        self.logger.info(
+            'Checking {0}, cost: ${1:.2f}, target: ${2:.2f}, current bid: ${3:.2f} ({4:.2%}, ${5:.2f})'.format(
+                position['symbol'], cost_basis, target_price, max_bid, max_bid / cost_basis - 1,
+                                                                       (max_bid - cost_basis) * shares))
+        if max_bid > target_price * 0.995:
             self.robinhood.cancel_all_orders(position['symbol'])
             self.robinhood.place_stop_limit_sell_order(position, target_price)
-            self.logger.info('New sell order placed for %s @ $%.2f' % (position['symbol'], target_price))
-
+            self.logger.info('New sell order placed for {0} @ ${1:.2f} ({2:+.2%}, ${3:+.2f})'.format(
+                position['symbol'], target_price, target_profit_pct, target_profit))
 
 
 if __name__ == '__main__':
