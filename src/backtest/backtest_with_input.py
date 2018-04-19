@@ -45,8 +45,8 @@ def place_sell_orders(context, data, position):
     price_history = data.history(position.asset, ['high', 'low', 'close'], 30, '1d')
     price_history.index.name = 'date'
     new_sell_price = context.sell_strategy_lock_profit.get_sell_price(cost_basis=position.cost_basis,
-                                                                        price_history=price_history,
-                                                                        target_date=context.datetime.date())
+                                                                      price_history=price_history,
+                                                                      target_date=context.datetime.date())
     open_orders = get_open_orders(position.asset)
     current_sell_price = 0 if len(open_orders) == 0 else open_orders[0].limit or open_orders[0].stop
 
