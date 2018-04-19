@@ -59,9 +59,12 @@ class RobinhoodDayRunner:
     def trade_target_price(self, position, target_price: float):
         bid_prices = self.robinhood.bid_price(position['symbol'])
         max_bid, _ = max(bid_prices, key=lambda bids: bids[0])
+        self.logger.info('Checking %s, current bid: $%s, target: $%.2f' % (position['symbol'], max_bid, target_price))
         if float(max_bid) > target_price * 0.995:
             self.robinhood.cancel_all_orders(position['symbol'])
             self.robinhood.place_stop_limit_sell_order(position, target_price)
+            self.logger.info('New sell order placed for %s @ $%.2f' % (position['symbol'], target_price))
+
 
 
 if __name__ == '__main__':
