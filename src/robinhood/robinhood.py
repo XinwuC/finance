@@ -29,6 +29,14 @@ class RobinhoodAccount:
         res = self.robinhood.session.post('https://api.robinhood.com/orders/%s/cancel/' % order['id'])
         res.raise_for_status()
 
+    def get_max_trade_price(self, symbol: str, bid_price: bool = True, ask_price: bool = False) -> float:
+        trade_prices = self.robinhood.last_trade_price(symbol)
+        if bid_price:
+            trade_prices += self.robinhood.bid_price(symbol)
+        if ask_price:
+            trade_prices += self.robinhood.ask_price(symbol)
+        return float(max(max(trade_prices)))
+
     def bid_price(self, symbol: str) -> float:
         return self.robinhood.bid_price(symbol)
 
