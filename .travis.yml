@@ -12,6 +12,7 @@ before_install:
 install:
   - pip install -r requirements.txt
   - pip install -U tushare
+  - pip install -U pytest-cov
 # command to run tests
 script:
   - PYTHONPATH=`pwd`/src pytest tests --cov=./
