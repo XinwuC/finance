@@ -68,7 +68,7 @@ class RobinhoodDayRunner:
                                                                                   low_target, high_target) +
             'current bid: ${0:.2f} ({1:.2%}, ${2:.2f})'.format(max_trade_price, max_trade_price / cost_basis - 1,
                                                                (max_trade_price - cost_basis) * shares))
-        if max_trade_price > high_target * 0.995:
+        if max_trade_price > high_target * 0.9995:
             # place high target sell order
             self.robinhood.cancel_all_orders(position['symbol'])
             self.robinhood.place_stop_limit_sell_order(position, high_target)
