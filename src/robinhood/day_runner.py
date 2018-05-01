@@ -1,12 +1,11 @@
 import argparse
-import datetime
 import logging.config
 import os
 import time
 
 import pandas as pd
-import pytz
 from Robinhood.exceptions import LoginFailed
+from robinhood_utility import RobinhoodUtility
 
 from robinhood import RobinhoodAccount
 from utility.utility import Utility
@@ -22,7 +21,6 @@ class RobinhoodDayRunner:
 
         self.args = self.parse_argument()
         self.robinhood = RobinhoodAccount(self.config.robinhood_account, Utility.decrypt(self.args.rhp))
-        self.logger.info('Login robinhood successful.')
 
     def parse_argument(self):
         parser = argparse.ArgumentParser()
@@ -34,29 +32,28 @@ class RobinhoodDayRunner:
         return parser.parse_args()
 
     def run(self):
-        sell_book = pd.read_csv('configs/robinhood_sell_book.csv', index_col=0)
-        positions = self.robinhood.get_positions()
-        symbols = set(positions.keys()).intersection(sell_book.index)
-        if not symbols:
-            self.logger.info('No positions to run, sell book: %d, positions: %d' % (sell_book.shape[0], len(positions)))
-            return
+        with self.robinhood:
+            self.logger.info('Login robinhood successful.')
+            sell_book = pd.read_csv('configs/robinhood_sell_book.csv', index_col=0)
+            positions = self.robinhood.get_positions()
+            symbols = set(positions.keys()).intersection(sell_book.index)
+            if not symbols:
+                self.logger.info(
+                    'No positions to run, sell book: %d, positions: %d' % (sell_book.shape[0], len(positions)))
+                return
 
-        self.logger.info('Start to track live market price and follow sell book to sell.')
-        while self.is_market_open():
-            for symbol in symbols:
-                try:
-                    self.trade_target_price(positions[symbol], sell_book['low'][symbol], sell_book['high'][symbol])
-                except LoginFailed as e:
-                    self.logger.error("failed to update sell order %d for %s: %s" % (sell_book[symbol], symbol, e))
-                    self.robinhood.login()
-                except Exception as e:
-                    self.logger.error("failed to update sell order %d for %s: %s" % (sell_book[symbol], symbol, e))
-            time.sleep(60)
-        self.logger.info('Market closed.')
-
-    def is_market_open(self):
-        current_time_est = datetime.datetime.now(pytz.timezone('US/Eastern'))
-        return 9 <= current_time_est.hour < 16
+            self.logger.info('Start to track live market price and follow sell book to sell.')
+            while RobinhoodUtility.is_market_open():
+                for symbol in symbols:
+                    try:
+                        self.trade_target_price(positions[symbol], sell_book['low'][symbol], sell_book['high'][symbol])
+                    except LoginFailed as e:
+                        self.logger.error("failed to update sell order %d for %s: %s" % (sell_book[symbol], symbol, e))
+                        self.robinhood.login()
+                    except Exception as e:
+                        self.logger.error("failed to update sell order %d for %s: %s" % (sell_book[symbol], symbol, e))
+                time.sleep(60)
+            self.logger.info('Market closed.')
 
     def trade_target_price(self, position, low_target: float, high_target: float):
         max_trade_price = self.robinhood.get_max_trade_price(position['symbol'])
@@ -83,5 +80,8 @@ class RobinhoodDayRunner:
 
 
 if __name__ == '__main__':
-    day_runner = RobinhoodDayRunner()
-    day_runner.run()
+    try:
+        day_runner = RobinhoodDayRunner()
+        day_runner.run()
+    except BaseException as e:
+        logging.exception(e)
