@@ -15,6 +15,6 @@ install:
   - pip install -U coverage codecov
 # command to run tests
 script:
-  - coverage run --concurrency=thread --source src -m unittest discover -s tests/ -t . && coverage report
+  - PYTHONPATH=`pwd`/src coverage run --source src -m unittest discover -s tests/ -t `pwd` -v && coverage report
 after_success:
   - codecov

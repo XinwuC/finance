@@ -23,3 +23,12 @@ class RobinhoodUtility:
     def is_market_open():
         current_time_est = datetime.datetime.now(pytz.timezone('US/Eastern'))
         return datetime.time(hour=9, minute=30) <= current_time_est.time() <= datetime.time(hour=16, minute=00)
+
+    @staticmethod
+    def get_max_trade_price(symbol: str, bid_price: bool = True, ask_price: bool = False) -> float:
+        trade_prices = RobinhoodUtility.__robinhood.last_trade_price(symbol)
+        if bid_price:
+            trade_prices += RobinhoodUtility.__robinhood.bid_price(symbol)
+        if ask_price:
+            trade_prices += RobinhoodUtility.__robinhood.ask_price(symbol)
+        return float(max(max(trade_prices)))

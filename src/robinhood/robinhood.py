@@ -1,6 +1,6 @@
 from Robinhood import Robinhood
 
-from robinhood_utility import RobinhoodUtility
+from robinhood.robinhood_utility import RobinhoodUtility
 
 
 class RobinhoodAccount:
@@ -42,14 +42,6 @@ class RobinhoodAccount:
     def cancel_order(self, order):
         res = self.robinhood.session.post('https://api.robinhood.com/orders/%s/cancel/' % order['id'])
         res.raise_for_status()
-
-    def get_max_trade_price(self, symbol: str, bid_price: bool = True, ask_price: bool = False) -> float:
-        trade_prices = self.robinhood.last_trade_price(symbol)
-        if bid_price:
-            trade_prices += self.robinhood.bid_price(symbol)
-        if ask_price:
-            trade_prices += self.robinhood.ask_price(symbol)
-        return float(max(max(trade_prices)))
 
     def place_stop_limit_sell_order(self, position, limit_price: float, stop_price: float = None,
                                     time_in_force: str = 'GFD',
