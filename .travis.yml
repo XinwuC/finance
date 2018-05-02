@@ -12,9 +12,9 @@ before_install:
 install:
   - pip install -r requirements.txt
   - pip install -U tushare
-  - pip install -U pytest-cov
+  - pip install -U coverage codecov
 # command to run tests
 script:
-  - PYTHONPATH=`pwd`/src pytest tests --cov=./
+  - PYTHONPATH=`pwd`/src coverage run --source src -m unittest discover -s tests/ -t `pwd` -v && coverage report
 after_success:
   - codecov
