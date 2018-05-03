@@ -4,7 +4,6 @@ from utility.utility import *
 class SimpleProfitLockSellStrategy:
     def __init__(self, mini_profit: float = 0.05):
         self.minimal_profit = mini_profit
-        pass
 
     def get_sell_price(self, cost_basis: float, price_history: pd.DataFrame,
                        target_date: datetime.date = None) -> float:
