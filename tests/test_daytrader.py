@@ -1,5 +1,4 @@
 import unittest
-
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -44,7 +43,7 @@ class RobinhoodDayTraderTestCase(unittest.TestCase):
     def test_trade_target_price_high_2(self, *mocks):
         self.verify_combination(cost=200.01, low=100, high=200, bid=199.99, traded=False)
 
-    def test_trade_target_price_high_2(self, *mocks):
+    def test_trade_target_price_high_3(self, *mocks):
         self.verify_combination(cost=10, low=100, high=200, bid=400, traded=True, target_price=400)
 
     def verify_combination(self, cost, low, high, bid, traded, target_price=0):

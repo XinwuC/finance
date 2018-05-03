@@ -3,7 +3,6 @@ import logging.config
 import os
 import time
 
-import pandas as pd
 from Robinhood.exceptions import LoginFailed
 
 from robinhood.robinhood import RobinhoodAccount
@@ -29,7 +28,7 @@ class RobinhoodIntraDayTrader:
         return parser.parse_args()
 
     def run(self):
-        sell_book = pd.read_csv('configs/robinhood_sell_book.csv', index_col=0)
+        sell_book = RobinhoodUtility.load_sell_book()
         with self.robinhood:
             self.logger.info('Login Robinhood successful.')
             self.logger.info('Start to track live market price and follow sell book to sell.')
@@ -52,14 +51,18 @@ class RobinhoodIntraDayTrader:
         self.logger.info('Logout from Robinhood.')
 
     def trade_target_price(self, position, low_target: float, high_target: float):
+        cost_basis = float(position['average_buy_price'])
+        shares = int(float(position['quantity']))
+        # reset low_target and high_target in case they are None
+        low_target = low_target or 0.0
+        high_target = high_target or cost_basis * 10
+
         if low_target > high_target:
             self.logger.warning('({0}) low target price ${1:.2f} above high target ${2:.2f}, skip until fix.'.format(
                 position['symbol'], low_target, high_target))
             return
 
         max_trade_price = RobinhoodUtility.get_max_trade_price(position['symbol'])
-        cost_basis = float(position['average_buy_price'])
-        shares = int(float(position['quantity']))
 
         self.logger.info(
             'Checking ({0}), cost: ${1:.2f}, target: [${2:.2f}, ${3:.2f}], '.format(position['symbol'], cost_basis,
@@ -77,7 +80,7 @@ class RobinhoodIntraDayTrader:
         elif cost_basis <= low_target < max_trade_price < low_target * 1.01:
             # place low target sell order
             self.robinhood.cancel_all_orders(position['symbol'])
-            self.robinhood.place_stop_limit_sell_order(position, low_target)
+            self.robinhood.place_stop_limit_sell_order(position, low_target, time_in_force='gtc')
             self.logger.info('New sell order placed for {0} @ ${1:.2f} ({2:+.2%}, ${3:+.2f})'.format(
                 position['symbol'], low_target, low_target / cost_basis - 1, (high_target - cost_basis) * shares))
 

@@ -1,11 +1,14 @@
 import datetime
 
+import github
+import pandas as pd
 import pytz
 from Robinhood import Robinhood
 
 
 class RobinhoodUtility:
     __robinhood = Robinhood()
+    __sell_book_path = 'configs/robinhood_sell_book.csv'
 
     @staticmethod
     def is_order_open(order: dict) -> bool:
@@ -32,3 +35,24 @@ class RobinhoodUtility:
         if ask_price:
             trade_prices += RobinhoodUtility.__robinhood.ask_price(symbol)
         return float(max(max(trade_prices)))
+
+    @staticmethod
+    def load_sell_book() -> pd.DataFrame:
+        return pd.read_csv(RobinhoodUtility.__sell_book_path, index_col=0).astype('float')
+
+    @staticmethod
+    def save_sell_book(sell_book: pd.DataFrame):
+        sell_book.to_csv(RobinhoodUtility.__sell_book_path)
+
+    @staticmethod
+    def upload_sell_book(sell_book: pd.DataFrame, github_token: str) -> bool:
+        repo = github.Github(github_token).get_user().get_repo('finance')
+        remote_path = '/%s' % RobinhoodUtility.__sell_book_path
+        remote_file = repo.get_file_contents(remote_path)
+        new_file = sell_book.to_csv()
+        uploaded = False
+        if remote_file.decoded_content != new_file.encode('ascii'):
+            repo.update_file(remote_path, 'update sell book', sell_book.to_csv(), remote_file.sha)
+            RobinhoodUtility.save_sell_book(sell_book)
+            uploaded = True
+        return uploaded

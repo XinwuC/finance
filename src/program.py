@@ -9,11 +9,12 @@ from smtplib import SMTP
 import pandas
 from dateutil import parser
 
+from robinhood.robinhood import RobinhoodAccount
+from robinhood.robinhood_utility import RobinhoodUtility
 from stock.china_market import ChinaMarket
 from stock.us_market import UsaMarket
+from strategy.sell.sell_strategy_lock_profit import SimpleProfitLockSellStrategy
 from utility.utility import *
-from robinhood.profit_lock_seller import ProfitLockSeller
-from robinhood.exceptions import RobinhoodException
 
 
 class Program:
@@ -27,6 +28,8 @@ class Program:
         self.args = self.parse_argument()
         self.text_report = ''
         self.html_report = ''
+        self.us_market = UsaMarket(avkey=Utility.decrypt(self.args.avkey), qkey=Utility.decrypt(self.args.qkey))
+        self.china_market = ChinaMarket()
 
     def generate_buying_report(self, buyings={}):
         for market, buying_options in buyings.items():
@@ -45,23 +48,46 @@ class Program:
                                                              x)}
                                                      ))
 
-    def refresh_robinhood_account(self):
-        # refresh Robinhood and update orders
-        robinhood = ProfitLockSeller()
-        robinhood.login(username=self.config.robinhood_account, password=Utility.decrypt(self.args.rhp))
-        self.logger.info('Login Robinhood successfully: %s' % self.config.robinhood_account)
-        robinhood.refresh_account()
-        for symbol, position in robinhood.positions.items():
-            try:
-                robinhood.update_sell_order(symbol)
-            except RobinhoodException as e:
-                self.logger.exception("Error when update sell order for %s: %s", symbol, e)
+    def lock_profit(self):
+        sell_book = RobinhoodUtility.load_sell_book()
+        brokerage = RobinhoodAccount(self.config.robinhood_account, Utility.decrypt(self.args.rhp))
+        sell_strategy = SimpleProfitLockSellStrategy()
+        with brokerage:
+            self.text_report += '===== Robinhood Account =====\n\n'
+            self.html_report += '<p><h1>Robinhood Account</h1><ul>'
+            for position in brokerage.get_positions().values():
+                # get position data
+                symbol = position['symbol']
+                shares = int(float(position['quantity']))
+                cost_basis = float(position['average_buy_price'])
+                report = '[%s] %d shares @ $%.2f' % (symbol, shares, cost_basis)
+                # get sell order from sell book
+                if symbol not in sell_book.index:
+                    sell_book.loc[symbol] = {'low': 0.0, 'high': None}
+                low_target = float(sell_book['low'][symbol])
+                report += ', current low target: $%.2f' % low_target
+                # calculate new sell price
+                history = self.us_market.refresh_stock(symbol=symbol, start=datetime.datetime(1990, 1, 1))
+                new_sell_price = round(sell_strategy.get_sell_price(cost_basis, history), 2)
+                report += ', suggest: ${0:.2f} ({1:+.2%}, ${2:+.2f})'.format(new_sell_price,
+                                                                             new_sell_price / cost_basis - 1,
+                                                                             (new_sell_price - cost_basis) * shares)
+                # update sell order if conditions are met
+                if new_sell_price > low_target:
+                    sell_book['low'][symbol] = new_sell_price
 
-        # generate reports
-        self.text_report += '===== Robinhood Account =====\n\n'
-        self.text_report += '\n'.join(robinhood.reports)
-        self.html_report += '<p><h1>Robinhood Account</h1><ul><li>%s</li></ul></p>' % (
-            '</li><li>'.join(robinhood.reports))
+                # report and logging
+                self.text_report += '%s\n' % report
+                self.html_report += '<li>%s</li>' % report
+                self.logger.info(report)
+            self.html_report += '</ul></p>'
+        try:
+            if RobinhoodUtility.upload_sell_book(sell_book, self.args.ght):
+                self.logger.info("Uploaded new sell book to github.")
+            else:
+                self.logger.info("No change to sell book, skip upload.")
+        except Exception as e:
+            self.logger.exception('Failed to upload new sell book: %s', e)
 
     def save_report(self):
         # add html head
@@ -111,6 +137,8 @@ class Program:
                             required=False)
         parser.add_argument('-rhp', '--robinhood_password', dest='rhp', default='', help='Robinhood account password',
                             required=False)
+        parser.add_argument('-ght', '--github_token', dest='ght', default='', help='Github access token',
+                            required=False)
         parser.add_argument('-avkey', '--alphavantage_key', dest='avkey', default='', help='AlphaVantage API key',
                             required=False)
         parser.add_argument('-qkey', '--quandl_key', dest='qkey', default='', help='Quandl API key',
@@ -121,16 +149,10 @@ class Program:
     def run(self):
         # add countries to run
         markets = []
-        if 'all' in self.args.country:
-            markets.append(UsaMarket(avkey=Utility.decrypt(self.args.avkey), qkey=Utility.decrypt(self.args.qkey)))
-            markets.append(ChinaMarket())
-        else:
-            for c in self.args.country:
-                if Market.US.value == c:
-                    markets.append(UsaMarket(avkey=Utility.decrypt(self.args.avkey),
-                                             qkey=Utility.decrypt(self.args.qkey)))
-                elif Market.China.value == c:
-                    markets.append(ChinaMarket())
+        if 'all' in self.args.country or Market.US.value in self.args.country:
+            markets.append(self.us_market)
+        if 'all' in self.args.country or Market.China.value in self.args.country:
+            markets.append(self.china_market)
 
         # execute functions as demanded
         buyings = {}
@@ -174,7 +196,7 @@ class Program:
         if 'robinhood' in self.args.mode or 'all' in self.args.mode:
             try:
                 self.logger.info('refresh Robinhood account')
-                self.refresh_robinhood_account()
+                self.lock_profit()
             except Exception as e:
                 self.logger.exception('Failed to refresh Robinhood account', e)
 
