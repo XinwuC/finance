@@ -79,7 +79,7 @@ class Program:
                     sell_book.loc[symbol, 'low'] = new_sell_price
         # upload sell book
         try:
-            if RobinhoodUtility.upload_sell_book(sell_book[['low', 'high']], self.args.ght):
+            if RobinhoodUtility.upload_sell_book(sell_book[['low', 'high']], Utility.decrypt(self.args.ght)):
                 self.logger.info("Uploaded new sell book to github.")
             else:
                 self.logger.info("No change to sell book, skip upload.")
