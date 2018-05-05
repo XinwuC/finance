@@ -26,79 +26,81 @@ class Program:
         self.config = Utility.get_config()
 
         self.args = self.parse_argument()
-        self.text_report = ''
-        self.html_report = ''
         self.us_market = UsaMarket(avkey=Utility.decrypt(self.args.avkey), qkey=Utility.decrypt(self.args.qkey))
         self.china_market = ChinaMarket()
 
-    def generate_buying_report(self, buyings={}):
+    def generate_reports(self, buyings={}, sell_book: pandas.DataFrame = None) -> (str, str):
+        text_report = ''
+        html_report = '<html><head/><body>'
+        # generate buyings report
         for market, buying_options in buyings.items():
             if len(buying_options) > 0:
-                self.text_report += '===== %s =====\n\n' % market
-                self.html_report += '<h1>%s</h1>' % market
+                text_report += '===== %s =====\n\n' % market
+                html_report += '<h1>%s</h1>' % market
                 for name in buying_options:
-                    self.text_report += '%s\n\n%s\n\n' % (name, buying_options[name].to_string())
-                    self.html_report += '<h3>%s</h3><p>%s</p>' % (
-                        name,
-                        buying_options[name].to_html(escape=False,
-                                                     formatters={
-                                                         'symbol': lambda x:
-                                                         '<a href="{0}/{1}">{1}</a>'.format(
-                                                             Utility.get_config(Market(market)).symbol_page,
-                                                             x)}
-                                                     ))
+                    text_report += '%s\n\n%s\n\n' % (name, buying_options[name].to_string())
+                    html_report += '<h3>%s</h3><p>%s</p>' % (name, buying_options[name].to_html(escape=False,
+                        formatters={'symbol': lambda x: Utility.get_stock_hyperlink(market, x)}))
+        # generate sell book report
+        if sell_book is not None:
+            format_book = sell_book.reset_index()
+            text_report += '===== Robinhood Account =====\n\n%s\n\n' % format_book.to_string()
+            html_report += '<p><h1>Robinhood Account</h1><p>%s</p></p>' % format_book.to_html(escape=False,
+                formatters={'index': lambda x: Utility.get_stock_hyperlink(Market.US, x)})
+        # add html
+        html_report += '</body></html>'
+        return text_report, html_report
 
-    def lock_profit(self):
-        sell_book = RobinhoodUtility.load_sell_book()
+    def update_sell_book(self):
+        sell_book = RobinhoodUtility.load_sell_book().astype('float')
+        sell_book = pandas.concat([sell_book, pandas.DataFrame(columns=['cost_basis', 'shares', 'pre_low'])])
+        # update sell book
         brokerage = RobinhoodAccount(self.config.robinhood_account, Utility.decrypt(self.args.rhp))
         sell_strategy = SimpleProfitLockSellStrategy()
         with brokerage:
-            self.text_report += '===== Robinhood Account =====\n\n'
-            self.html_report += '<p><h1>Robinhood Account</h1><ul>'
             for position in brokerage.get_positions().values():
                 # get position data
                 symbol = position['symbol']
                 shares = int(float(position['quantity']))
                 cost_basis = float(position['average_buy_price'])
-                report = '[%s] %d shares @ $%.2f' % (symbol, shares, cost_basis)
                 # get sell order from sell book
                 if symbol not in sell_book.index:
-                    sell_book.loc[symbol] = {'low': 0.0, 'high': None}
-                low_target = float(sell_book['low'][symbol])
-                report += ', current low target: $%.2f' % low_target
-                # calculate new sell price
+                    sell_book.loc[symbol] = {'low': 0.0, 'high': None, 'cost_basis': cost_basis, 'shares': shares,
+                                             'pre_low': 0.0}
+                else:
+                    sell_book.loc[symbol, 'cost_basis'] = cost_basis
+                    sell_book.loc[symbol, 'shares'] = shares
+                    sell_book.loc[symbol, 'pre_low'] = sell_book['low'][symbol]
+                # calculate new low target price
                 history = self.us_market.refresh_stock(symbol=symbol, start=datetime.datetime(1990, 1, 1))
                 new_sell_price = round(sell_strategy.get_sell_price(cost_basis, history), 2)
-                report += ', suggest: ${0:.2f} ({1:+.2%}, ${2:+.2f})'.format(new_sell_price,
-                                                                             new_sell_price / cost_basis - 1,
-                                                                             (new_sell_price - cost_basis) * shares)
                 # update sell order if conditions are met
-                if new_sell_price > low_target:
-                    sell_book['low'][symbol] = new_sell_price
-
-                # report and logging
-                self.text_report += '%s\n' % report
-                self.html_report += '<li>%s</li>' % report
-                self.logger.info(report)
-            self.html_report += '</ul></p>'
+                if new_sell_price > sell_book['low'][symbol]:
+                    sell_book.loc[symbol, 'low'] = new_sell_price
+        # upload sell book
         try:
-            if RobinhoodUtility.upload_sell_book(sell_book, self.args.ght):
+            if RobinhoodUtility.upload_sell_book(sell_book[['low', 'high']], self.args.ght):
                 self.logger.info("Uploaded new sell book to github.")
             else:
                 self.logger.info("No change to sell book, skip upload.")
         except Exception as e:
             self.logger.exception('Failed to upload new sell book: %s', e)
+        # return
+        sell_book.loc[:, 'low_profit_%'] = sell_book['low'] / sell_book['cost_basis'] - 1
+        sell_book.loc[:, 'low_profit_$$'] = (sell_book['low'] - sell_book['cost_basis']) * sell_book['shares']
+        sell_book.loc[:, 'high_profit_%'] = sell_book['high'] / sell_book['cost_basis'] - 1
+        sell_book.loc[:, 'high_profit_$$'] = (sell_book['high'] - sell_book['cost_basis']) * sell_book['shares']
+        return sell_book
 
-    def save_report(self):
-        # add html head
-        self.html_report = '<html><head /><body>%s</body></html>' % self.html_report
+    def save_report(self, buyings, sell_book):
+        text_report, html_report = self.generate_reports(buyings, sell_book)
         # save reports to file
         file_path = Utility.get_data_folder(DataFolder.Output)
         file_name = os.path.join(file_path, 'reports_%s' % datetime.date.today())
         with open('%s.txt' % file_name, 'w+') as file:
-            file.write(self.text_report)
+            file.write(text_report)
         with open('%s.html' % file_name, 'w+') as file:
-            file.write(self.html_report)
+            file.write(html_report)
 
         # send mail
         if self.args.send_mail:
@@ -106,8 +108,8 @@ class Program:
             msg['From'] = self.config.mail_account
             msg['To'] = self.config.mail_to
             msg['Subject'] = '[%s] Algorithm Trading Reports' % datetime.date.today()
-            msg.attach(MIMEText(self.text_report, 'plain'))
-            msg.attach(MIMEText(self.html_report, 'html'))
+            msg.attach(MIMEText(text_report, 'plain'))
+            msg.attach(MIMEText(html_report, 'html'))
 
             # send mail
             with SMTP('smtp.live.com', '587') as smtp:
@@ -115,6 +117,9 @@ class Program:
                 smtp.login(self.config.mail_account, Utility.decrypt(self.args.mp))
                 smtp.sendmail(msg['From'], msg['To'], msg.as_string())
                 logging.info('Send opportunities through mail to %s', msg['To'])
+
+        # log text report
+        self.logger.info(text_report)
 
     def parse_argument(self):
         parser = argparse.ArgumentParser()
@@ -190,18 +195,19 @@ class Program:
                             len(buyings[market.market]), market.market))
                 except Exception as e:
                     self.logger.exception('Failed to run strategies for %s' % market.market, e)
-        self.generate_buying_report(buyings)
+        self.generate_reports(buyings)
 
         # refresh robinhood account
+        sell_book = None
         if 'robinhood' in self.args.mode or 'all' in self.args.mode:
             try:
-                self.logger.info('refresh Robinhood account')
-                self.lock_profit()
+                self.logger.info('Update Robinhood sell book')
+                sell_book = self.update_sell_book()
             except Exception as e:
-                self.logger.exception('Failed to refresh Robinhood account', e)
+                self.logger.exception('Failed to update Robinhood sell book', e)
 
         # record buying options if strategies have been evaluated
-        self.save_report()
+        self.save_report(buyings, sell_book)
 
 
 if __name__ == '__main__':

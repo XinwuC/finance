@@ -77,6 +77,10 @@ class Utility:
             return Utility.__program_config
 
     @staticmethod
+    def get_stock_hyperlink(market: Market, symbol: str) -> str:
+        return '<a href="{0}/{1}">{1}</a>'.format(Utility.get_config(Market(market)).symbol_page, symbol)
+
+    @staticmethod
     def get_data_folder(folder: DataFolder, market: Market = None) -> str:
         folder_path = os.path.join(Utility.get_config().data_path, '' if market is None else market.value, folder.value)
         os.makedirs(folder_path, exist_ok=True)
