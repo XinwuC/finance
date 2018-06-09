@@ -50,8 +50,38 @@ class RobinhoodDayTraderTestCase(unittest.TestCase):
         RobinhoodUtility.get_max_trade_price = MagicMock(return_value=bid)
         target = RobinhoodIntraDayTrader()
         target.trade_target_price({'symbol': 'GOOG', 'average_buy_price': cost, 'quantity': 100}, low, high)
-        self.assertEqual(traded, target.robinhood.cancel_all_orders.called)
         self.assertEqual(traded, target.robinhood.place_stop_limit_sell_order.called)
         if traded:
             self.assertEqual(target_price, target.robinhood.place_stop_limit_sell_order.call_args[0][1])
         return target
+
+    def test_place_stop_limit_sell_order_0(self, *mocks):
+        target = RobinhoodIntraDayTrader()
+        target.robinhood.get_open_orders.return_value = []
+        target.place_stop_limit_sell_order({'symbol': 'GOOG', 'average_buy_price': 1000, 'quantity': 100}, 1234)
+        self.assertFalse(target.robinhood.cancel_order.called)
+        self.assertTrue(target.robinhood.place_stop_limit_sell_order.called)
+        self.assertEqual(1234, target.robinhood.place_stop_limit_sell_order.call_args[0][1])
+
+    def test_place_stop_limit_sell_order_1(self, *mocks):
+        target = RobinhoodIntraDayTrader()
+        target.robinhood.get_open_orders.return_value = [{'side':'sell', 'price': '1000'}]
+        target.place_stop_limit_sell_order({'symbol': 'GOOG', 'average_buy_price': 1000, 'quantity': 100}, 1234)
+        self.assertTrue(target.robinhood.cancel_order.called)
+        self.assertTrue(target.robinhood.place_stop_limit_sell_order.called)
+        self.assertEqual(1234, target.robinhood.place_stop_limit_sell_order.call_args[0][1])
+
+    def test_place_stop_limit_sell_order_2(self, *mocks):
+        target = RobinhoodIntraDayTrader()
+        target.robinhood.get_open_orders.return_value = [{'side':'sell', 'price': '2000'}]
+        target.place_stop_limit_sell_order({'symbol': 'GOOG', 'average_buy_price': 1000, 'quantity': 100}, 1234)
+        self.assertFalse(target.robinhood.cancel_order.called)
+        self.assertFalse(target.robinhood.place_stop_limit_sell_order.called)
+
+    def test_place_stop_limit_sell_order_3(self, *mocks):
+        target = RobinhoodIntraDayTrader()
+        target.robinhood.get_open_orders.return_value = [{'side':'sell', 'price': '1001'}]
+        target.place_stop_limit_sell_order({'symbol': 'GOOG', 'average_buy_price': 1000, 'quantity': 100}, 1234, True)
+        self.assertTrue(target.robinhood.cancel_order.called)
+        self.assertTrue(target.robinhood.place_stop_limit_sell_order.called)
+        self.assertEqual(1234, target.robinhood.place_stop_limit_sell_order.call_args[0][1])
