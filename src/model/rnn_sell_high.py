@@ -54,10 +54,25 @@ class lstm:
             del data[drop_col]
         return data
 
+    def drop_correlate_features(self, features: pd.DataFrame, label_col: str):
+        del_cols = set()
+        corr = features.corr()
+        for col_a in features.columns:
+            if col_a in del_cols:
+                continue
+            for col_b in features.columns:
+                if col_b == col_a or col_b == label_col:
+                    continue
+                if corr.loc[col_a, col_b] > 0.9:
+                    del_cols.add(col_b)
+        for col in del_cols:
+            del features[col]
+
     def prepare_data(self, symbol: str, timesteps: int) -> (np.ndarray, np.ndarray):
         symbol_features = self.add_features(self.load_stock_data(symbol))
         # 1. combine with sp500
         combined_features = pd.concat([symbol_features, self.market_indicator], axis=1, join='inner').dropna()
+        self.drop_correlate_features(combined_features, 'high')
         # 2. normalize input data before time steps
         vol_columns = [col for col in combined_features.columns if col.startswith(StockPriceField.Volume.value)]
         price_columns = [col for col in combined_features.columns if col not in vol_columns]
@@ -67,7 +82,7 @@ class lstm:
             combined_features[price_col] = price_scaler.transform(combined_features[price_col].values.reshape(-1, 1))
         for vol_col in vol_columns:
             combined_features[vol_col] = vol_scaler.transform(combined_features[vol_col].values.reshape(-1, 1))
-        assert combined_features.values.min() >= 0 and combined_features.values.max() <= 1
+        assert combined_features.values.min() >= 0 and combined_features.values.max() <= 1.000001
         # 3. add time steps
         training_steps = []
         for step in range(timesteps, 0, -1):
@@ -145,4 +160,3 @@ if __name__ == '__main__':
     pyplot.legend()
     pyplot.show()
     print('test loss: ', metrics.mean_absolute_error(tl, that))
-

@@ -33,15 +33,28 @@ class RobinhoodAccount:
             positions[symbol] = pos
         return positions
 
-    def cancel_all_orders(self, symbol: str):
+    def get_open_orders(self, symbol: str) -> []:
+        open_orders = []
         for order in self.robinhood.order_history()['results']:
             if RobinhoodUtility.is_order_open(order):
                 if symbol == RobinhoodUtility.instrument_2_symbol(order['instrument']):
-                    self.cancel_order(order)
+                    open_orders.append(order)
+        return open_orders
+
+    def cancel_all_orders(self, symbol: str):
+        for order in self.get_open_orders(symbol):
+            self.cancel_order(order)
 
     def cancel_order(self, order):
         res = self.robinhood.session.post('https://api.robinhood.com/orders/%s/cancel/' % order['id'])
         res.raise_for_status()
+
+    def place_limit_sell_order(self, position, limit_price: float, time_in_force: str = 'GFD', shares: int = None):
+        self.robinhood.place_limit_sell_order(instrument_URL=position['instrument'],
+                                              symbol=position['symbol'],
+                                              time_in_force=time_in_force,
+                                              price=limit_price,
+                                              quantity=shares or int(float(position['quantity'])))
 
     def place_stop_limit_sell_order(self, position, limit_price: float, stop_price: float = None,
                                     time_in_force: str = 'GFD',
